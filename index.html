@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0A0A0B">
 <style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
-<title>Comanda Garçom</title>
+<title>DNBAR Garçom</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
@@ -328,6 +333,12 @@ svg{width:22px;height:22px;flex:none}
 .toast .ic{width:44px;height:44px;border-radius:14px;background:var(--ok);color:#05281a;display:grid;place-items:center;flex:none}
 @keyframes drop{from{transform:translateY(-140%)}to{transform:none}}
 .demo-tag{font-size:12px;color:var(--muted);text-align:center;font-weight:500}
+.field{display:grid;gap:6px;font-weight:600;font-size:14px;color:var(--muted)}
+.field input{height:52px;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 16px;font:inherit;font-size:17px;font-weight:600}
+.err{color:var(--brand);font-weight:700;text-align:center;font-size:15px;min-height:20px}
+.net{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom));z-index:60;background:var(--warn);color:#1a1200;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center}
+.loading{flex:1;display:grid;place-items:center;color:var(--muted);font-weight:600}
+.linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;font-weight:600;text-decoration:underline;justify-self:center}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.scrim{opacity:1}}
 </style>
 
@@ -335,79 +346,17 @@ svg{width:22px;height:22px;flex:none}
 <body>
 <div id="app"></div>
 
-<script>
-/* ================= CONFIG DO BAR (o mesmo padrão da página pública) ================= */
-const BAR = { name:"Cumbuca's Bar", serviceFee:0.10 };
-const STAFF = [
-  {id:"carlos",name:"Carlos",role:"Garçom",color:"#FF4757"},
-  {id:"pedro",name:"Pedro",role:"Garçom",color:"#FF9F43"},
-  {id:"joao",name:"João",role:"Garçom",color:"#2EE59D"},
-  {id:"bia",name:"Bia",role:"Garçonete",color:"#5B8CFF"},
-  {id:"aline",name:"Aline",role:"Garçonete",color:"#C86BFA"},
-  {id:"marcela",name:"Marcela",role:"Gerente",color:"#FFC93C"}
-];
-STAFF.forEach(p=>{p.photo="img/staff-"+p.id+".jpg";p.portrait="img/staffp-"+p.id+".jpg"});
-const MENU = [
- {id:"porcoes",hue:"#FF4757",name:"Porções",area:"cozinha",items:[
-  {n:2,img:"img/item-02.jpg",name:"Peixe frito",prices:[{l:"Pequena",v:5450},{l:"Grande",v:6350}]},
-  {n:3,img:"img/item-03.jpg",name:"Contra filé acebolado",prices:[{l:"Pequena",v:5050},{l:"Grande",v:6050}]},
-  {n:4,img:"img/item-04.jpg",name:"Contra filé com queijo",prices:[{l:"Pequena",v:5650},{l:"Grande",v:6450}]},
-  {n:5,img:"img/item-05.jpg",name:"Frango a passarinho",prices:[{l:"Pequena",v:4050},{l:"Grande",v:4550}]},
-  {n:6,img:"img/item-06.jpg",name:"Calabresa",prices:[{l:"Pequena",v:4050},{l:"Grande",v:4550}]},
-  {n:7,img:"img/item-07.jpg",name:"Batata frita",prices:[{l:"Pequena",v:2950},{l:"Grande",v:3550}]},
-  {n:8,img:"img/item-08.jpg",name:"Batata, bacon e queijo",price:4850}]},
- {id:"combos",hue:"#FF9F43",name:"Combos",area:"cozinha",items:[
-  {n:9,img:"img/item-09.jpg",name:"Batata e frango",price:5350},
-  {n:10,img:"img/item-10.jpg",name:"Batata e calabresa",price:5150},
-  {n:11,img:"img/item-11.jpg",name:"Batata e contra filé",price:5750},
-  {n:12,img:"img/item-12.jpg",name:"Calabresa e contra filé",price:5850},
-  {n:13,img:"img/item-13.jpg",name:"Frango e contra filé",price:6150}]},
- {id:"jantinha",hue:"#FFC93C",name:"Jantinha",area:"cozinha",items:[
-  {n:18,img:"img/item-18.jpg",name:"Contra filé com queijo",price:2900},
-  {n:19,img:"img/item-19.jpg",name:"Contra filé",price:2700},
-  {n:20,img:"img/item-20.jpg",name:"Peixe frito",price:2800},
-  {n:21,img:"img/item-21.jpg",name:"Frango frito",price:2700},
-  {n:22,img:"img/item-22.jpg",name:"Filé de frango com queijo",price:2900}]},
- {id:"caldos",hue:"#E17055",name:"Caldos",area:"cozinha",items:[
-  {n:23,img:"img/item-23.jpg",name:"Caldo de mocotó",prices:[{l:"Pequena",v:1350},{l:"Grande",v:2150}]},
-  {n:24,img:"img/item-24.jpg",name:"Caldo de frango",prices:[{l:"Pequena",v:1350},{l:"Grande",v:2150}]},
-  {n:25,img:"img/item-25.jpg",name:"Caldo de feijão",prices:[{l:"Pequena",v:1350},{l:"Grande",v:2150}]},
-  {n:26,img:"img/item-26.jpg",name:"Caldo misto",price:2250},
-  {n:27,icon:"cup",name:"Caldo no copo",price:950},
-  {n:28,icon:"plus",name:"Adicional de queijo",price:600}]},
- {id:"lanches",hue:"#FD79A8",name:"Lanches",area:"cozinha",items:[
-  {n:29,img:"img/item-29.jpg",name:"X-Bagunça",price:3000},
-  {n:30,img:"img/item-30.jpg",name:"X-Bacon",price:2600},
-  {n:31,img:"img/item-31.jpg",name:"X-Salada",price:1550},
-  {n:32,img:"img/item-32.jpg",name:"X-Egg",price:1550},
-  {n:33,img:"img/item-33.jpg",name:"X-Burguer",price:1550},
-  {n:34,img:"img/item-34.jpg",name:"Baguncinha",price:2200},
-  {n:35,img:"img/item-35.jpg",name:"Bauru",price:1300},
-  {n:36,img:"img/item-36.jpg",name:"Cachorro-quente prensado",price:1600},
-  {n:37,img:"img/item-37.jpg",name:"X-Frango",price:2500}]},
- {id:"cervejas",hue:"#F9CA24",name:"Cervejas",area:"bar",items:[
-  {n:51,img:"img/item-51.jpg",name:"Brahma 600ml",price:1375},
-  {n:52,img:"img/item-52.jpg",name:"Skol 600ml",price:1375},
-  {n:48,img:"img/item-48.jpg",name:"Original 600ml",price:1650},
-  {n:47,img:"img/item-47.jpg",name:"Corona long neck",price:1850},
-  {n:49,img:"img/item-49.jpg",name:"Stella long neck",price:1650},
-  {n:50,img:"img/item-50.jpg",name:"Budweiser long neck",price:1450},
-  {n:53,img:"img/item-53.jpg",name:"Antarctica 600ml",price:null},
-  {n:54,img:"img/item-54.jpg",name:"Cerveja lata",price:null},
-  {n:46,img:"img/item-46.jpg",name:"Cerveja zero",price:1100}]},
- {id:"doses",hue:"#C86BFA",name:"Doses",area:"bar",items:[
-  {n:55,img:"img/item-55.jpg",name:"Cozumel",price:null},
-  {n:56,img:"img/item-56.jpg",name:"Cool Burro",price:null}]},
- {id:"sem",hue:"#2EE59D",name:"Sem álcool",area:"bar",items:[
-  {n:40,img:"img/item-40.jpg",name:"Refrigerante lata",price:650},
-  {n:38,img:"img/item-38.jpg",name:"Refrigerante 1L",price:1000},
-  {n:39,img:"img/item-39.jpg",name:"Refrigerante 1,5L",price:1400},
-  {n:41,img:"img/item-41.jpg",name:"Água sem gás",price:450},
-  {n:42,img:"img/item-42.jpg",name:"Água com gás",price:500},
-  {n:43,img:"img/item-43.jpg",name:"Energético",price:1450},
-  {n:44,img:"img/item-44.jpg",name:"Água tônica",price:750},
-  {n:45,img:"img/item-45.jpg",name:"Aquarius",price:800}]}
-];
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+/* ================= CONEXÃO (chave pública: pode ficar no app) ================= */
+const SUPABASE_URL = "https://omshldyfjethjufjhkrd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_xLQMg0R5NOM8GA6mShSPiw_TJa7_J1V";
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ================= DADOS DO BAR (carregados do banco) ================= */
+let BAR = { name:"DNBAR", serviceFee:0.10, kitchen:false };
+let STAFF = [];
+let MENU = [];
 const NOTES = {cozinha:["Sem cebola","Bem passado","Molho à parte","Capricha"],bar:["Sem gelo","Com gelo e limão","Bem gelada","Copo extra"]};
 const TOP = [51,7,5,40,29,52]; // mais pedidos da casa (atalho)
 
@@ -435,38 +384,31 @@ const I = {
 };
 
 /* ================= DADOS ================= */
-const PROD = {}; // pid -> produto
-MENU.forEach(c=>c.items.forEach(it=>{
-  it.cat=c.id; it.area=c.area; it.hue=c.hue;
-  if(it.prices) it.prices.forEach(p=>{PROD[it.n+"-"+p.l[0]]={pid:it.n+"-"+p.l[0],n:it.n,name:it.name+" ("+p.l.toLowerCase()+")",price:p.v,area:c.area,base:it}});
-  else PROD[String(it.n)]={pid:String(it.n),n:it.n,name:it.name,price:it.price,area:c.area,base:it};
-}));
+let PROD = {}; // pid -> produto
+let ALL = [];
 const money = c => "R$ "+(c/100).toFixed(2).replace(".",",").replace(/\B(?=(\d{3})+(?!\d))/g,".");
-const now = () => new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const hhmm = ts => new Date(ts).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+const now = () => hhmm(Date.now());
 const esc = s => String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-const it = (pid,qty,st,note)=>({pid,name:PROD[pid].name,price:PROD[pid].price,area:PROD[pid].area,qty,st,note:note||""});
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
 
-function mkTables(){
-  const T=[];
-  for(let i=1;i<=24;i++) T.push({id:String(i).padStart(2,"0"),area:"Salão",s:null});
-  for(let i=1;i<=6;i++) T.push({id:"V"+i,area:"Varanda",s:null});
-  const S=(id,o)=>{T.find(t=>t.id===id).s=Object.assign({people:2,code:String(1000+Math.floor(Math.random()*9000)),flag:null,items:[],log:[]},o)};
-  S("03",{opened:"20:41",waiter:"carlos",people:4,items:[it("51",3,"entregue"),it("7-G",1,"entregue")],log:[["20:41","Carlos abriu a mesa"],["20:44","Carlos lançou 3 Brahma e 1 Batata grande"],["21:02","Batata entregue por Carlos"]]});
-  S("08",{opened:"20:55",waiter:"carlos",people:3,items:[it("52",2,"entregue"),it("5-P",1,"pronto"),it("40",1,"pronto")],log:[["20:55","Carlos abriu a mesa"],["21:10","Cliente pediu pelo QR: Frango a passarinho, Refrigerante"],["21:24","Cozinha marcou pronto"]]});
-  S("12",{opened:"21:03",waiter:"carlos",people:5,items:[it("51",4,"entregue"),it("11",1,"preparo","Capricha"),it("29",2,"preparo","Sem cebola")],log:[["21:03","Carlos abriu a mesa"],["21:08","Carlos lançou 4 Brahma"],["21:31","Carlos lançou Batata e contra filé, 2 X-Bagunça"]]});
-  S("14",{opened:"20:30",waiter:"carlos",people:2,flag:"chamou",flagAt:"21:33",items:[it("48",2,"entregue"),it("26",1,"entregue")],log:[["20:30","Carlos abriu a mesa"],["21:33","Cliente chamou o garçom pelo QR"]]});
-  S("21",{opened:"19:48",waiter:"carlos",people:6,flag:"conta",flagAt:"21:35",items:[it("51",8,"entregue"),it("3-G",1,"entregue"),it("6-G",1,"entregue"),it("41",2,"entregue")],log:[["19:48","Carlos abriu a mesa"],["21:35","Cliente pediu a conta pelo QR"]]});
-  S("05",{opened:"21:15",waiter:"joao",people:2,items:[it("47",2,"entregue")],log:[["21:15","João abriu a mesa"]]});
-  S("09",{opened:"20:20",waiter:"bia",people:4,items:[it("51",6,"entregue"),it("13",1,"entregue")],log:[["20:20","Bia abriu a mesa"]]});
-  S("16",{opened:"21:20",waiter:"aline",people:3,items:[it("24-G",2,"preparo")],log:[["21:20","Aline abriu a mesa"]]});
-  S("V2",{opened:"20:05",waiter:"pedro",people:8,items:[it("51",12,"entregue"),it("2-G",1,"entregue"),it("7-G",2,"entregue")],log:[["20:05","Pedro abriu a mesa"]]});
-  S("V4",{opened:"21:22",waiter:"carlos",people:2,items:[it("49",2,"entregue")],log:[["21:22","Carlos abriu a mesa"]]});
-  return T;
+function buildMenu(cats, prods){
+  MENU = cats.map(c=>({id:c.slug, dbid:c.id, hue:c.hue, name:c.name, area:c.area,
+    items: prods.filter(p=>p.category_id===c.id).map(p=>({id:p.id, n:p.number, img:p.image_url, icon:p.icon, name:p.name,
+      price:p.price_cents, prices:(p.sizes&&p.sizes.length?p.sizes:null), available:p.available}))}));
+  PROD = {};
+  MENU.forEach(c=>c.items.forEach(it=>{
+    it.cat=c.id; it.area=c.area; it.hue=c.hue;
+    if(it.prices) it.prices.forEach(p=>{PROD[it.n+"-"+p.l[0]]={pid:it.n+"-"+p.l[0],id:it.id,size:p.l,n:it.n,name:it.name+" ("+p.l.toLowerCase()+")",price:p.v,area:c.area,base:it}});
+    else PROD[String(it.n)]={pid:String(it.n),id:it.id,size:null,n:it.n,name:it.name,price:it.price,area:c.area,base:it};
+  }));
+  ALL = MENU.flatMap(c=>c.items);
 }
 
 /* ================= ESTADO ================= */
-const S = {user:null,pinFor:null,pin:"",view:"inicio",mesa:null,cart:[],cat:"top",q:"",filter:"todas",sheet:null,orderSeq:291,toast:null,sending:false,lastOrder:{}};
-let TABLES = mkTables();
+const S = {user:null,token:null,pinFor:null,pin:"",pinErr:"",pinBusy:false,view:"inicio",mesa:null,cart:[],cat:"top",q:"",filter:"todas",sheet:null,toast:null,sending:false,lastOrder:{},
+  auth:null, loaded:false, act:{email:"",pw:"",err:"",busy:false}, queue:[]};
+let TABLES = [];
 const T = id => TABLES.find(t=>t.id===id);
 const me = () => STAFF.find(p=>p.id===S.user);
 const sub = s => s.items.filter(i=>i.st!=="cancelado").reduce((a,i)=>a+i.qty*(i.price||0),0);
@@ -489,6 +431,127 @@ function alerts(){
   return out.sort((a,b)=>a.w-b.w);
 }
 
+/* ================= BANCO DE DADOS ================= */
+const ERR = {
+  SESSAO_EXPIRADA:"Sua sessão expirou. Entre de novo com o PIN.", MESA_OCUPADA:"Essa mesa já está aberta.",
+  MESA_FECHADA:"Essa mesa já foi fechada.", MESA_INVALIDA:"Mesa não encontrada.", PEDIDO_VAZIO:"O pedido está vazio.",
+  PRODUTO_INVALIDO:"Um produto do pedido não existe mais.", PRODUTO_ESGOTADO:"Produto esgotado", SEM_PRECO:"Produto sem preço",
+  TAMANHO_INVALIDO:"Escolha o tamanho de novo", QUANTIDADE_INVALIDA:"Quantidade inválida.",
+  PIN_INVALIDO:"PIN incorreto.", BLOQUEADO:"Muitas tentativas. Aguarde 5 minutos ou chame o gerente.",
+  APARELHO_NAO_AUTORIZADO:"Este aparelho não está autorizado."
+};
+const errMsg = e => { const m=String((e&&e.message)||e||""); const [code,extra]=m.split(":"); return ERR[code]?(ERR[code]+(extra?": "+extra:"")):"Algo deu errado. Tente de novo."; };
+const isNetErr = e => !navigator.onLine || /fetch|network|Load failed|timeout/i.test(String((e&&e.message)||e||""));
+
+async function rpc(fn, args){
+  const {data,error} = await sb.rpc(fn, args);
+  if(error){
+    if(/SESSAO_EXPIRADA/.test(error.message)) kickOut();
+    throw error;
+  }
+  return data;
+}
+function kickOut(){
+  S.user=null; S.token=null; S.view="inicio"; S.sheet=null;
+  try{localStorage.removeItem("dnbar-staff")}catch(e){}
+  toast("Sessão encerrada","Entre de novo com o seu PIN");
+}
+
+async function loadStatic(){
+  const [est, st, tb, ca, pr] = await Promise.all([
+    sb.from("establishments").select("id,name,service_fee_pct,kitchen_enabled").single(),
+    sb.from("staff").select("id,name,role,role_label,photo_url,portrait_url").eq("active",true).order("sort"),
+    sb.from("dining_tables").select("id,label,area,sort").eq("active",true).order("sort"),
+    sb.from("categories").select("id,slug,name,hue,area,sort").eq("active",true).order("sort"),
+    sb.from("products").select("id,category_id,number,name,image_url,icon,price_cents,sizes,available,sort").eq("active",true).order("sort")
+  ]);
+  for(const r of [est,st,tb,ca,pr]) if(r.error) throw r.error;
+  BAR = { name:est.data.name, serviceFee:Number(est.data.service_fee_pct)/100, kitchen:est.data.kitchen_enabled };
+  STAFF = st.data.map(p=>({id:p.id,name:p.name,role:p.role_label,photo:p.photo_url||"img/avatar.png",portrait:p.portrait_url||p.photo_url||"img/avatar.png"}));
+  buildMenu(ca.data, pr.data);
+  TABLES = tb.data.map(t=>({id:t.label, dbid:t.id, area:t.area, s:null}));
+}
+
+async function loadLive(){
+  const ses = await sb.from("table_sessions").select("id,table_id,waiter_id,people,flag,flag_at,opened_at").eq("status","open");
+  if(ses.error) throw ses.error;
+  const ids = ses.data.map(x=>x.id);
+  let items=[], evs=[];
+  if(ids.length){
+    const [it, ev] = await Promise.all([
+      sb.from("order_items").select("id,session_id,product_id,size_label,name_snapshot,unit_price_cents,qty,note,area,status,created_at,orders(number)").in("session_id",ids).order("created_at"),
+      sb.from("session_events").select("session_id,message,created_at").in("session_id",ids).order("id")
+    ]);
+    if(it.error) throw it.error; if(ev.error) throw ev.error;
+    items=it.data; evs=ev.data;
+  }
+  const byNum = {}; ALL.forEach(b=>byNum[b.id]=b);
+  TABLES.forEach(t=>t.s=null);
+  ses.data.forEach(x=>{
+    const t = TABLES.find(t=>t.dbid===x.table_id); if(!t) return;
+    t.s = {sid:x.id, opened:hhmm(x.opened_at), waiter:x.waiter_id, people:x.people, flag:x.flag, flagAt:x.flag_at?hhmm(x.flag_at):"",
+      items: items.filter(i=>i.session_id===x.id).map(i=>{const b=byNum[i.product_id]; const pid=b?(b.n+(i.size_label?"-"+i.size_label[0]:"")):"x";
+        return {pid, name:i.name_snapshot, price:i.unit_price_cents, area:i.area, qty:i.qty, st:i.status, note:i.note||"", order:i.orders?i.orders.number:null}}),
+      log: evs.filter(e=>e.session_id===x.id).map(e=>[hhmm(e.created_at), e.message])};
+  });
+}
+
+let liveTimer=null, channel=null;
+function scheduleLive(){ clearTimeout(liveTimer); liveTimer=setTimeout(async()=>{ try{ await loadLive(); render(); }catch(e){} }, 250); }
+function subscribe(){
+  if(channel) sb.removeChannel(channel);
+  channel = sb.channel("salao")
+    .on("postgres_changes",{event:"*",schema:"public",table:"table_sessions"},scheduleLive)
+    .on("postgres_changes",{event:"*",schema:"public",table:"order_items"},ev=>{
+      if(ev.eventType==="UPDATE" && ev.new && ev.new.status==="pronto" && ev.old && ev.old.status!=="pronto") S.readyPing=true;
+      scheduleLive();})
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"session_events"},scheduleLive)
+    .on("postgres_changes",{event:"*",schema:"public",table:"products"},async()=>{ try{ await loadStatic(); await loadLive(); render(); }catch(e){} })
+    .subscribe();
+}
+
+/* ===== fila offline: pedido nunca se perde, nunca duplica (mesma chave) ===== */
+function saveQueue(){ try{localStorage.setItem("dnbar-fila",JSON.stringify(S.queue))}catch(e){} }
+function loadQueue(){ try{S.queue=JSON.parse(localStorage.getItem("dnbar-fila")||"[]")}catch(e){S.queue=[]} }
+let flushing=false;
+async function flushQueue(){
+  if(flushing||!S.queue.length||!S.token) return; flushing=true;
+  try{
+    while(S.queue.length){
+      const q=S.queue[0];
+      try{
+        const r = await rpc("create_order",{p_token:S.token,p_session_id:q.sid,p_key:q.key,p_items:q.items});
+        S.queue.shift(); saveQueue();
+        if(q.late) toast(`Mesa ${q.label}: pedido #${r.number} enviado`,"Saiu da fila de espera");
+        if(q.onDone) q.onDone(r);
+      }catch(e){
+        if(isNetErr(e)) break;
+        S.queue.shift(); saveQueue(); toast(`Mesa ${q.label}: pedido não enviado`, errMsg(e));
+        if(q.onFail) q.onFail(e);
+      }
+    }
+  } finally { flushing=false; render(); }
+}
+window.addEventListener("online",()=>{render(); flushQueue(); scheduleLive();});
+window.addEventListener("offline",()=>render());
+setInterval(()=>{ flushQueue(); },5000);
+setInterval(()=>{ if(S.auth&&S.loaded) scheduleLive(); },30000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&S.auth&&S.loaded){ scheduleLive(); flushQueue(); } });
+
+async function boot(){
+  loadQueue();
+  const {data} = await sb.auth.getSession();
+  S.auth = data.session;
+  if(S.auth){
+    try{
+      await loadStatic(); await loadLive(); S.loaded=true; subscribe();
+      try{ const st=JSON.parse(localStorage.getItem("dnbar-staff")||"null"); if(st&&STAFF.some(p=>p.id===st.id)){S.user=st.id;S.token=st.token} }catch(e){}
+      flushQueue();
+    }catch(e){ S.bootErr = isNetErr(e) ? "Sem conexão com a internet. Tentando de novo..." : "Não foi possível carregar os dados do bar."; setTimeout(boot,5000); }
+  }
+  render();
+}
+
 /* ================= TEMA (preto, branco, azul) ================= */
 const TEMAS=[["preto","Preto","#09090B"],["branco","Branco","#FFFFFF"],["azul","Azul","#0D2A5C"]];
 let TEMA="preto"; try{const t=localStorage.getItem("dnbar-tema"); if(TEMAS.some(x=>x[0]===t)) TEMA=t}catch(e){}
@@ -499,19 +562,21 @@ const temaSwitch=()=>`<div class="tema" role="group" aria-label="Cor do fundo">$
 
 /* ================= RENDER ================= */
 const app = document.getElementById("app");
-const ALL = MENU.flatMap(c=>c.items);
 const staff = id => STAFF.find(p=>p.id===id);
 function render(){
   let h="";
-  const key=!S.user?(S.pinFor?"pin":"login"):S.view+(S.view==="mesa"||S.view==="pedido"?S.mesa:"");
+  const key=!S.auth?"act":!S.user?(S.pinFor?"pin":"login"):S.view+(S.view==="mesa"||S.view==="pedido"?S.mesa:"");
   const enter=render.k!==key;
   let inner;
-  if(!S.user) inner=vLogin();
+  if(!S.auth) inner=vActivate();
+  else if(!S.loaded) inner=`<div class="loading">${esc(S.bootErr||"Carregando o salão...")}</div>`;
+  else if(!S.user) inner=vLogin();
   else if(S.view==="mesa") inner=vMesa();
   else if(S.view==="pedido") inner=vPedido();
   else inner=(S.view==="salao"?vSalao():vInicio());
   h=`<div class="view ${enter?"enter":""}">${inner}</div>`;
   if(S.user&&(S.view==="inicio"||S.view==="salao")) h+=vNav();
+  if(S.auth&&(!navigator.onLine||S.queue.length)) h+=`<div class="net" role="status">${!navigator.onLine?"Sem conexão":"Enviando"}${S.queue.length?` · ${S.queue.length} ${S.queue.length>1?"pedidos aguardando":"pedido aguardando"}`:""}</div>`;
   if(S.sheet) h+=`<div class="scrim" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${S.sheet()}</div>`;
   if(S.toast) h+=`<div class="toast" role="status"><div class="ic">${I.check}</div><div><b>${esc(S.toast.t)}</b><span>${esc(S.toast.s)}</span></div></div>`;
   const sc=app.querySelector(".scroll"); const y=sc?sc.scrollTop:0;
@@ -520,9 +585,23 @@ function render(){
   const sc2=app.querySelector(".scroll"); if(sc2&&!enter) sc2.scrollTop=y;
   render.k=key;
   if(focused==="q"){const q=document.getElementById("q"); if(q){q.focus(); q.setSelectionRange(q.value.length,q.value.length)}}
+  if(S.readyPing&&S.user){S.readyPing=false; beep();}
   if(S.bump){const c=app.querySelector(".cartbar .btn"); if(c) c.classList.add("bump"); S.bump=false}
 }
 
+function beep(){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const o=c.createOscillator(), g=c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value=880; g.gain.setValueAtTime(.2,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.4); o.start(); o.stop(c.currentTime+.4); if(navigator.vibrate) navigator.vibrate(200);}catch(e){} }
+function vActivate(){
+  const a=S.act;
+  return `<div class="login">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="eyebrow">DNBAR</div>${temaSwitch()}</div>
+    <div><div class="brandmark">Ativar este<br><span class="grad-text">aparelho</span></div>
+    <div style="color:var(--muted);font-weight:500;margin-top:10px">Feito uma vez só, pelo gerente ou dono. Depois a equipe entra só com foto e PIN.</div></div>
+    <label class="field">E-mail do bar<input type="email" autocomplete="username" inputmode="email" data-in="email" value="${esc(a.email)}"></label>
+    <label class="field">Senha<input type="password" autocomplete="current-password" data-in="pw" value="${esc(a.pw)}"></label>
+    <div class="err" role="alert">${esc(a.err)}</div>
+    <button class="btn primary block" data-a="activate" ${a.busy?"disabled":""}>${a.busy?"Ativando...":"Ativar aparelho"}</button>
+  </div>`;
+}
 function vLogin(){
   if(S.pinFor){
     const p=staff(S.pinFor);
@@ -534,14 +613,14 @@ function vLogin(){
       </div>
       <div class="pin-dots" aria-label="${S.pin.length} de 4 dígitos">${[0,1,2,3].map(i=>`<i class="${i<S.pin.length?"on":""}"></i>`).join("")}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-a="pin" data-v="${n}">${n}</button>`).join("")}<button class="ghost" data-a="pinback">Trocar</button><button data-a="pin" data-v="0">0</button><button class="ghost" data-a="pindel" aria-label="Apagar">${I.del}</button></div>
-      <div class="demo-tag">Demonstração: qualquer PIN entra</div>
+      <div class="err" role="alert">${esc(S.pinBusy?"Conferindo...":S.pinErr)}</div>
     </div>`;
   }
   return `<div class="login">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="eyebrow">${esc(BAR.name)}</div>${temaSwitch()}</div>
     <div style="margin-top:-12px"><div class="brandmark">Quem está no<br><span class="grad-text">salão hoje?</span></div></div>
     <div class="people">${STAFF.map(p=>`<button class="person" data-a="who" data-v="${p.id}" aria-label="${esc(p.name)}, ${p.role}"><img src="${p.portrait}" alt=""><span class="cap"><b>${esc(p.name)}</b><span class="role">${p.role}</span></span></button>`).join("")}</div>
-    <div class="demo-tag">Na demo, entre como Carlos para ver as mesas dele.</div>
+    <button class="linkbtn" data-a="deactivate">Desativar este aparelho</button>
   </div>`;
 }
 
@@ -609,14 +688,13 @@ function vMesa(){
   const t=T(S.mesa), s=t.s; if(!s){S.view="salao";return vSalao()}
   const st=tState(t), w=staff(s.waiter);
   const subtotal=sub(s), fee=Math.round(subtotal*BAR.serviceFee);
-  const hasReady=s.items.some(i=>i.st==="pronto");
+  const hasReady=s.items.some(i=>i.st==="pronto"||(!BAR.kitchen&&i.st==="preparo"));
   return `<div class="top"><button class="back" data-a="home" aria-label="Voltar">${I.back}</button><div class="grow"><div class="eyebrow">${t.area}</div><h1 style="font-size:20px">Mesa ${t.id}</h1></div>
   ${hasReady?`<button class="btn ok" data-a="deliver" data-v="${t.id}">${I.check}Entreguei</button>`:s.flag==="chamou"?`<button class="btn ok" data-a="ack" data-v="${t.id}">Fui lá</button>`:""}</div>
   <div class="scroll">
    <div class="hero ${st}">
     <div class="hero-row"><div><span class="st-pill">${LABEL[st]}</span><div class="big">${t.id}</div><div class="meta"><span>${s.people} pessoas</span><span>Aberta às ${s.opened}</span></div></div>
      <div class="waiter"><img src="${w.photo}" alt="">${esc(w.name)}</div></div>
-    <div class="code"><div><div style="font-size:10px;letter-spacing:.14em;font-weight:800;opacity:.85">CÓDIGO DO CLIENTE</div><b class="num">${s.code}</b></div><span>Passe para a mesa pedir pelo QR code</span></div>
    </div>
    <div class="acts">
     <button data-a="order" data-v="${t.id}"><span class="ic i1">${I.plus}</span>Pedido</button>
@@ -625,8 +703,8 @@ function vMesa(){
     <button data-a="bill" data-v="${t.id}"><span class="ic i4">${I.receipt}</span>Conta</button>
    </div>
    <div class="section-h"><h3>Consumo</h3><span class="eyebrow">${s.items.filter(i=>i.st!=="cancelado").reduce((a,i)=>a+i.qty,0)} itens</span></div>
-   <div class="bill">${s.items.length?s.items.map(i=>`<div class="line ${i.st==="cancelado"?"cx":""}"><span class="q num">${i.qty}</span><span class="nm">${esc(i.name)}${i.note?`<small>${esc(i.note)}</small>`:""}<span class="st ${i.st}">${{preparo:(i.area==="bar"?"No bar":"Na cozinha"),pronto:"Pronto p/ levar",entregue:"Entregue",cancelado:"Cancelado"}[i.st]}</span></span><span class="p num">${i.price==null?"a definir":money(i.qty*i.price)}</span></div>`).join(""):`<div class="empty" style="border:0">Nada lançado ainda. Toque em Pedido.</div>`}
-    <div class="totals"><div><span>Subtotal</span><span class="num">${money(subtotal)}</span></div><div><span>Serviço 10%</span><span class="num">${money(fee)}</span></div><div class="T"><span>Total</span><span class="num">${money(subtotal+fee)}</span></div></div>
+   <div class="bill">${s.items.length?s.items.map(i=>`<div class="line ${i.st==="cancelado"?"cx":""}"><span class="q num">${i.qty}</span><span class="nm">${esc(i.name)}${i.note?`<small>${esc(i.note)}</small>`:""}<span class="st ${i.st}">${{preparo:(!BAR.kitchen?"Lançado":i.area==="bar"?"No bar":"Na cozinha"),pronto:"Pronto p/ levar",entregue:"Entregue",cancelado:"Cancelado"}[i.st]}</span></span><span class="p num">${i.price==null?"a definir":money(i.qty*i.price)}</span></div>`).join(""):`<div class="empty" style="border:0">Nada lançado ainda. Toque em Pedido.</div>`}
+    <div class="totals"><div><span>Subtotal</span><span class="num">${money(subtotal)}</span></div><div><span>Serviço ${Math.round(BAR.serviceFee*100)}%</span><span class="num">${money(fee)}</span></div><div class="T"><span>Total</span><span class="num">${money(subtotal+fee)}</span></div></div>
    </div>
    <div class="section-h"><h3>Histórico</h3></div>
    <ul class="log">${s.log.slice().reverse().map(([h,x])=>`<li><time>${h}</time>${esc(x)}</li>`).join("")}</ul>
@@ -635,8 +713,8 @@ function vMesa(){
 
 function card(base,i){
   const inCart=S.cart.filter(c=>PROD[c.pid].n===base.n).reduce((a,c)=>a+c.qty,0);
-  const off=base.price===null&&!base.prices;
-  const pr=base.prices?`<span class="num">${money(base.prices[0].v)}<small> P/G</small></span>`:off?`<small>sem preço</small>`:`<span class="num">${money(base.price)}</span>`;
+  const off=(base.price===null&&!base.prices)||base.available===false;
+  const pr=base.prices?`<span class="num">${money(base.prices[0].v)}<small> P/G</small></span>`:off?`<small>${base.available===false?"esgotado":"sem preço"}</small>`:`<span class="num">${money(base.price)}</span>`;
   const pic=base.img?`<img class="pic" src="${base.img}" alt="" loading="lazy">`:`<span class="pic ico">${I[base.icon]||I.plate}</span>`;
   return `<button class="card ${inCart?"has":""} ${off?"off":""}" style="--hue:${base.hue};animation-delay:${Math.min(i,8)*30}ms" data-a="add" data-v="${base.n}" ${off?'aria-disabled="true"':""}>
    ${pic}<span class="area">${base.area==="bar"?I.glass+"Bar":I.flame+"Cozinha"}</span>${inCart?`<span class="badge">${inCart}</span>`:""}
@@ -651,7 +729,7 @@ function vPedido(){
     r.sort((a,b)=>(String(b.n)===q)-(String(a.n)===q));
     body=r.length?`<div class="grid">${r.map(card).join("")}</div>`:`<div class="empty">Nada com "${esc(S.q)}". Tente o número do cardápio.</div>`;
   } else if(S.cat==="top"){
-    body=`<div class="cat-h">Mais pedidos da casa</div><div class="grid">${TOP.map((n,i)=>card(ALL.find(b=>b.n===n),i)).join("")}</div>`;
+    body=`<div class="cat-h">Mais pedidos da casa</div><div class="grid">${TOP.map(n=>ALL.find(b=>b.n===n)).filter(Boolean).map((b,i)=>card(b,i)).join("")}</div>`;
   } else {
     const c=MENU.find(c=>c.id===S.cat);
     body=`<div class="grid">${c.items.map(card).join("")}</div>`;
@@ -715,7 +793,7 @@ function shTransfer(){
   <div class="pick">${free.map(x=>`<button data-a="pickT" data-v="${x.id}" aria-pressed="${S.openPick===x.id}">${x.id}</button>`).join("")}</div></div>
   <div class="sh-f"><button class="btn primary block" data-a="doTransfer" ${S.openPick?"":"disabled"}>${S.openPick?`Mover ${t.id} → ${S.openPick}`:"Escolha a mesa de destino"}</button></div>`;
 }
-const lastRound=t=>S.lastOrder[t.id]||t.s.items.filter(i=>i.area==="bar"&&i.st!=="cancelado").map(i=>({pid:i.pid,qty:i.qty}));
+const lastRound=t=>(S.lastOrder[t.id]||t.s.items.filter(i=>i.area==="bar"&&i.st!=="cancelado").map(i=>({pid:i.pid,qty:i.qty}))).filter(c=>PROD[c.pid]);
 function shRepeat(){
   const t=T(S.mesa), last=lastRound(t);
   if(!last.length) return head("Repetir rodada")+`<div class="sh-b"><div class="empty">Esta mesa ainda não tem rodada para repetir.</div></div>`;
@@ -736,7 +814,6 @@ function shBill(){
 }
 
 /* ================= AÇÕES ================= */
-function log(t,x){t.s.log.push([now(),x])}
 function toast(t,s){S.toast={t,s};render();clearTimeout(toast.h);toast.h=setTimeout(()=>{S.toast=null;render()},3200)}
 function openMesa(id){S.mesa=id;S.view="mesa";S.sheet=null}
 function addToCart(pid){
@@ -744,36 +821,58 @@ function addToCart(pid){
   if(ix>-1) S.cart[ix].qty++; else S.cart.push({pid,qty:1,notes:[]});
   S.bump=true;
 }
-function simulateKitchen(id,no){
-  setTimeout(()=>{const t=T(id); if(!t||!t.s) return;
-    let changed=false; t.s.items.forEach(i=>{if(i.st==="preparo"&&i.order===no){i.st="pronto";changed=true}});
-    if(!changed) return; log(t,`Pedido #${no} pronto`);
-    toast(`Mesa ${id}: pedido pronto`,`#${no} esperando no passe`);
-  }, 9000);
+async function act(fn, args, okTitle, okSub){
+  try{ await rpc(fn, Object.assign({p_token:S.token}, args)); await loadLive(); if(okTitle) toast(okTitle, okSub||""); else render(); return true; }
+  catch(e){ toast("Não deu certo", isNetErr(e)?"Sem conexão. Tente de novo em instantes.":errMsg(e)); return false; }
+}
+async function doPinLogin(){
+  const id=S.pinFor, pin=S.pin; S.pinBusy=true; S.pinErr=""; render();
+  try{
+    const r = await rpc("staff_login",{p_staff_id:id,p_pin:pin});
+    if(r.ok){ S.user=id; S.token=r.token; S.pinFor=null; S.view="inicio"; try{localStorage.setItem("dnbar-staff",JSON.stringify({id,token:r.token}))}catch(e){} flushQueue(); }
+    else S.pinErr = ERR[r.error] + (r.error==="PIN_INVALIDO"&&r.left!=null?` Restam ${r.left} tentativas.`:"");
+  }catch(e){ S.pinErr = isNetErr(e)?"Sem conexão. Tente de novo.":errMsg(e); }
+  S.pin=""; S.pinBusy=false; render();
 }
 function sendOrder(){
   if(S.sending) return; S.sending=true; render();
-  // no sistema real: chave de idempotência enviada junto, servidor recalcula preços
-  setTimeout(()=>{
-    const t=T(S.mesa), no=++S.orderSeq; let k=0,b=0;
-    S.cart.forEach(c=>{const p=PROD[c.pid]; t.s.items.push(Object.assign(it(c.pid,c.qty,"preparo",c.notes.join(", ")),{order:no})); p.area==="bar"?b+=c.qty:k+=c.qty});
-    const bar=S.cart.filter(c=>PROD[c.pid].area==="bar").map(c=>({pid:c.pid,qty:c.qty})); if(bar.length) S.lastOrder[t.id]=bar;
-    log(t,`${me().name} lançou pedido #${no}: `+S.cart.map(c=>c.qty+" "+PROD[c.pid].name).join(", "));
-    S.cart=[]; S.q=""; S.sending=false; S.sent={no,k,b}; render(); simulateKitchen(t.id,no);
-  }, 700);
+  const t=T(S.mesa);
+  const items=S.cart.map(c=>{const p=PROD[c.pid]; return {product_id:p.id,size:p.size,qty:c.qty,note:c.notes.join(", ")}});
+  let k=0,b=0; S.cart.forEach(c=>{PROD[c.pid].area==="bar"?b+=c.qty:k+=c.qty});
+  const bar=S.cart.filter(c=>PROD[c.pid].area==="bar").map(c=>({pid:c.pid,qty:c.qty}));
+  const q={key:uuid(), sid:t.s.sid, label:t.id, items};
+  q.onDone=async r=>{ if(bar.length) S.lastOrder[t.id]=bar; S.cart=[]; S.q=""; S.sending=false; S.sent={no:r.number,k,b}; await loadLive().catch(()=>{}); render(); };
+  q.onFail=()=>{ S.sending=false; };
+  S.queue.push(q); saveQueue();
+  flushQueue().then(()=>{
+    if(S.sending && S.queue.includes(q)){ // ficou na fila por falta de conexão
+      q.late=true; delete q.onDone; delete q.onFail; saveQueue();
+      if(bar.length) S.lastOrder[t.id]=bar; S.cart=[]; S.q=""; S.sending=false; S.sheet=null; S.view="mesa";
+      toast("Sem conexão: pedido guardado","Ele sai sozinho quando a internet voltar");
+    }
+  });
 }
 
-app.addEventListener("input",e=>{if(e.target.dataset.in==="q"){S.q=e.target.value;render()}});
-app.addEventListener("click",e=>{
+app.addEventListener("input",e=>{const k=e.target.dataset.in; if(k==="q"){S.q=e.target.value;render()} else if(k==="email"||k==="pw"){S.act[k]=e.target.value}});
+app.addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.target.dataset.in==="email"||e.target.dataset.in==="pw")){ e.preventDefault(); app.querySelector('[data-a="activate"]').click(); } });
+app.addEventListener("click",async e=>{
   const el=e.target.closest("[data-a]"); if(!el) return;
   const a=el.dataset.a, v=el.dataset.v;
   switch(a){
    case "tema": TEMA=v; try{localStorage.setItem("dnbar-tema",v)}catch(e){} aplicaTema(); break;
-   case "who": S.pinFor=v; S.pin=""; break;
-   case "pinback": S.pinFor=null; S.pin=""; break;
+   case "activate": {
+     if(S.act.busy) return; S.act.busy=true; S.act.err=""; render();
+     const {data,error}=await sb.auth.signInWithPassword({email:S.act.email.trim(),password:S.act.pw});
+     S.act.busy=false;
+     if(error){ S.act.err = isNetErr(error)?"Sem conexão com a internet.":"E-mail ou senha incorretos."; render(); return; }
+     S.auth=data.session; S.act={email:"",pw:"",err:"",busy:false}; S.loaded=false; render(); boot(); return; }
+   case "deactivate": if(!confirm("Desativar este aparelho? Vai precisar do e-mail e senha do bar para ativar de novo.")) return;
+     await sb.auth.signOut(); try{localStorage.removeItem("dnbar-staff")}catch(e){} S.auth=null; S.loaded=false; S.user=null; break;
+   case "who": S.pinFor=v; S.pin=""; S.pinErr=""; break;
+   case "pinback": S.pinFor=null; S.pin=""; S.pinErr=""; break;
    case "pindel": S.pin=S.pin.slice(0,-1); break;
-   case "pin": S.pin+=v; if(S.pin.length===4){S.user=S.pinFor;S.pinFor=null;S.pin="";S.view="inicio"} break;
-   case "logout": S.user=null; S.view="inicio"; break;
+   case "pin": if(S.pinBusy) return; S.pin+=v; S.pinErr=""; if(S.pin.length===4){ doPinLogin(); return; } break;
+   case "logout": { const tk=S.token; S.user=null; S.token=null; S.view="inicio"; try{localStorage.removeItem("dnbar-staff")}catch(e){} render(); if(tk) sb.rpc("staff_logout",{p_token:tk}); return; }
    case "tab": S.view=v; break;
    case "filter": S.filter=v; break;
    case "open": openMesa(v); break;
@@ -782,12 +881,12 @@ app.addEventListener("click",e=>{
    case "openNew": S.openPick=null; S.people=2; S.sheet=shOpen(); break;
    case "pickT": S.openPick=v; S.sheet=(S.sheet===shTransfer)?shTransfer:shOpen(); break;
    case "ppl": S.people=Math.max(1,Math.min(30,S.people+ +v)); S.sheet=shOpen(); break;
-   case "doOpen": { const t=T(S.openPick); t.s={opened:now(),waiter:S.user,people:S.people,code:String(1000+Math.floor(Math.random()*9000)),flag:null,items:[],log:[]}; log(t,`${me().name} abriu a mesa`); openMesa(t.id); toast(`Mesa ${t.id} aberta`,`Código do cliente: ${t.s.code}`); return; }
+   case "doOpen": { if(S.busy) return; S.busy=true; const id=S.openPick; const ok=await act("open_table",{p_table_id:T(id).dbid,p_people:S.people}); S.busy=false; if(ok){ openMesa(id); toast(`Mesa ${id} aberta`,"Pronta para lançar pedidos"); } return; }
    case "pickOrder": S.sheet=shPickOrder; break;
    case "order": S.mesa=v; S.view="pedido"; S.cart=[]; S.q=""; S.cat="top"; S.sheet=null; break;
    case "leaveOrder": S.view="mesa"; S.cart=[]; break;
    case "cat": S.cat=v; break;
-   case "add": { const b=ALL.find(x=>x.n===+v); if(b.price===null&&!b.prices) return; if(b.prices){S.sheet=shSize(b.n)} else addToCart(String(b.n)); break; }
+   case "add": { const b=ALL.find(x=>x.n===+v); if((b.price===null&&!b.prices)||b.available===false) return; if(b.prices){S.sheet=shSize(b.n)} else addToCart(String(b.n)); break; }
    case "addp": addToCart(v); S.sheet=null; break;
    case "review": S.sent=null; S.sheet=shReview; break;
    case "inc": S.cart[+v].qty++; break;
@@ -796,22 +895,26 @@ app.addEventListener("click",e=>{
    case "send": sendOrder(); return;
    case "afterSent": S.sheet=null; S.sent=null; S.view="mesa"; break;
    case "close": if(S.sent){S.sent=null;S.view="mesa"} S.sheet=null; break;
-   case "deliver": { const t=T(v); t.s.items.forEach(i=>{if(i.st==="pronto")i.st="entregue"}); log(t,`${me().name} entregou os itens prontos`); toast(`Mesa ${v}`,"Entrega registrada"); return; }
-   case "ack": { const t=T(v); t.s.flag=null; log(t,`${me().name} atendeu o chamado`); toast(`Mesa ${v}`,"Chamado atendido"); return; }
+   case "deliver": { const t=T(v); await act("deliver_ready",{p_session_id:t.s.sid},`Mesa ${v}`,"Entrega registrada"); return; }
+   case "ack": { const t=T(v); await act("ack_call",{p_session_id:t.s.sid},`Mesa ${v}`,"Chamado atendido"); return; }
    case "bill": S.mesa=v; S.sheet=shBill; break;
-   case "toCashier": { const t=T(S.mesa); t.s.flag="caixa"; log(t,`${me().name} mandou a conta para o caixa`); S.sheet=null; toast(`Mesa ${t.id}`,"Conta enviada para o caixa"); return; }
+   case "toCashier": { const t=T(S.mesa); S.sheet=null; await act("send_to_cashier",{p_session_id:t.s.sid},`Mesa ${t.id}`,"Conta enviada para o caixa"); return; }
    case "transfer": S.mesa=v; S.openPick=null; S.sheet=shTransfer; break;
-   case "doTransfer": { const from=T(S.mesa), to=T(S.openPick); to.s=from.s; from.s=null; log(to,`Mesa ${from.id} transferida para ${to.id} por ${me().name}`); if(S.lastOrder[from.id]){S.lastOrder[to.id]=S.lastOrder[from.id]} openMesa(to.id); toast("Mesa transferida",`${from.id} → ${to.id}`); return; }
+   case "doTransfer": { if(S.busy) return; S.busy=true; const from=T(S.mesa), to=S.openPick; const ok=await act("transfer_table",{p_session_id:from.s.sid,p_to_table:T(to).dbid}); S.busy=false;
+     if(ok){ if(S.lastOrder[from.id]) S.lastOrder[to]=S.lastOrder[from.id]; openMesa(to); S.sheet=null; toast("Mesa transferida",`${from.id} → ${to}`); } return; }
    case "repeat": S.mesa=v; S.sheet=shRepeat; break;
-   case "doRepeat": { const t=T(S.mesa); S.cart=lastRound(t).map(c=>({pid:c.pid,qty:c.qty,notes:[]})); S.view="pedido"; S.sent=null; S.sheet=shReview; break; }
+   case "doRepeat": { const t=T(S.mesa); S.cart=lastRound(t).filter(c=>PROD[c.pid]).map(c=>({pid:c.pid,qty:c.qty,notes:[]})); S.view="pedido"; S.sent=null; S.sheet=S.cart.length?shReview:null; break; }
   }
   render();
 });
 document.addEventListener("keydown",e=>{
-  if(!S.user&&S.pinFor&&/^\d$/.test(e.key)){S.pin+=e.key;if(S.pin.length===4){S.user=S.pinFor;S.pinFor=null;S.pin=""}render()}
+  if(S.auth&&!S.user&&S.pinFor&&!S.pinBusy&&/^\d$/.test(e.key)){S.pin+=e.key;S.pinErr="";if(S.pin.length===4){doPinLogin();return}render()}
   if(e.key==="Escape"&&S.sheet){S.sheet=null;S.sent=null;render()}
 });
+sb.auth.onAuthStateChange((ev,session)=>{ if(ev==="SIGNED_OUT"){ S.auth=null; S.loaded=false; S.user=null; render(); } else if(session) S.auth=session; });
+if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 render();
+boot();
 </script>
 </body>
 </html>
