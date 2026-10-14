@@ -22,7 +22,9 @@ export const ERR = {
   CAIXA_JA_ABERTO: "O caixa já está aberto.", VALOR_INVALIDO: "Valor inválido.", MOTIVO_OBRIGATORIO: "Escreva o motivo.",
   PIN_GERENTE_INVALIDO: "PIN do gerente incorreto.", ITEM_INVALIDO: "Esse item não pode mais ser cancelado.",
   FORMA_INVALIDA: "Escolha a forma de pagamento.", RECEBIDO_MENOR: "Valor recebido menor que o valor pago.",
-  STATUS_INVALIDO: "Esse pedido já mudou de etapa.", PEDIDO_INVALIDO: "Pedido não encontrado.", PLANO_SEM_DELIVERY: "O plano deste bar não inclui delivery.", PIX_INVALIDO: "Chave Pix inválida para o tipo escolhido."
+  STATUS_INVALIDO: "Esse pedido já mudou de etapa.", PEDIDO_INVALIDO: "Pedido não encontrado.", PLANO_SEM_DELIVERY: "O plano deste bar não inclui delivery.", PIX_INVALIDO: "Chave Pix inválida para o tipo escolhido.",
+  NUMERO_REPETIDO: "Já existe um produto com esse número.", CATEGORIA_INVALIDA: "Escolha uma categoria.", IMAGEM_INVALIDA: "Imagem inválida.",
+  PERIODO_INVALIDO: "Confira os dias e horários da promoção.", PROMO_INVALIDA: "Promoção não encontrada.", AREA_INVALIDA: "Escolha cozinha ou bar.", NOME_INVALIDO: "Digite o nome."
 };
 export const isNetErr = e => !navigator.onLine || /fetch|network|Load failed|timeout/i.test(String((e && e.message) || e || ""));
 export const errMsg = e => { if (isNetErr(e)) return "Sem conexão. Tente de novo em instantes."; const m = String((e && e.message) || e || ""); const [code, extra] = m.split(":"); return ERR[code] ? (ERR[code] + (extra ? ": " + extra : "")) : "Algo deu errado. Tente de novo."; };

@@ -103,6 +103,9 @@ async function loadMenu() {
   const { data, error } = await sb.rpc("public_menu", { p_slug: slug });
   if (error) { S.err = errMsg(error); render(); return; }
   S.menu = data; document.title = data.name + " · Pedido";
+  // aplica promoções do delivery (o servidor recalcula; aqui é para mostrar)
+  (data.promos || []).forEach(r => { const p = allProds().find(x => x.id === r.product_id); if (!p) return;
+    if (r.size && p.sizes) { const z = p.sizes.find(x => x.l === r.size); if (z) { z.base = z.v; z.v = r.price; } } else { p.base = p.price; p.price = r.price; } p.promo = true; });
   // limpa itens que sumiram ou mudaram de preço
   S.cart = S.cart.filter(c => { const p = allProds().find(x => x.id === c.id); if (!p || !p.available) return false;
     c.price = c.size ? ((p.sizes || []).find(s => s.l === c.size) || {}).v : p.price; return c.price != null; }); saveCart();
@@ -129,9 +132,9 @@ function vMenu() {
     <nav class="cats">${m.categories.map(c => `<button data-a="cat" data-v="${c.id}">${esc(c.name)}</button>`).join("")}</nav>
     ${m.categories.map(c => `<section id="c-${c.id}"><h2 class="cat-h">${esc(c.name)}</h2>${c.products.map(p => {
       const inCart = S.cart.filter(x => x.id === p.id).reduce((a, x) => a + x.qty, 0);
-      const price = p.sizes && p.sizes.length ? "a partir de " + money(Math.min(...p.sizes.map(s => s.v))) : money(p.price);
+      const price = p.sizes && p.sizes.length ? "a partir de " + money(Math.min(...p.sizes.map(s => s.v))) : (p.base ? `<s style="opacity:.55;font-weight:600">${money(p.base)}</s> ` : "") + money(p.price);
       return `<button class="prod ${p.available ? "" : "off"}" data-a="add" data-v="${p.id}" ${p.available && m.open ? "" : "disabled"}>
-        <span><b>${esc(p.name)}${inCart ? `<span class="qty">${inCart}</span>` : ""}</b>${p.available ? `<div class="pr num">${price}</div>` : `<div class="tag">Esgotado</div>`}</span>
+        <span><b>${esc(p.name)}${p.promo ? `<span class="qty" style="background:#F59E0B;color:#1a1200">PROMO</span>` : ""}${inCart ? `<span class="qty">${inCart}</span>` : ""}</b>${p.description ? `<span class="muted" style="font-size:14px;display:block;margin-top:2px">${esc(p.description)}</span>` : ""}${p.available ? `<div class="pr num">${price}</div>` : `<div class="tag">Esgotado</div>`}</span>
         ${p.image_url ? `<img src="${esc(img(p.image_url))}" alt="" loading="lazy">` : `<span class="noimg"></span>`}</button>`; }).join("")}</section>`).join("")}
     <div class="foot">Pedido direto com o restaurante · DNBAR</div></div>
     ${n && m.open ? `<div class="bar"><button class="btn" data-a="checkout"><span class="sp">Ver pedido (${n})</span><span class="num">${money(sub)}</span></button></div>` : ""}`;
@@ -142,7 +145,7 @@ function vSheet() {
   const m = S.menu;
   if (S.sheet === "size") { const p = allProds().find(x => x.id === S.size);
     return `<div class="sheet-bg" data-a="close"><div class="sheet" data-stop>${`<div class="sh-h"><h2>${esc(p.name)}</h2><button class="x" data-a="close">×</button></div>`}
-      ${p.sizes.map(s => `<button class="opt" data-a="addSize" data-v="${esc(s.l)}"><span>${esc(s.l)}</span><span class="num">${money(s.v)}</span></button>`).join("")}</div></div>`; }
+      ${p.sizes.map(s => `<button class="opt" data-a="addSize" data-v="${esc(s.l)}"><span>${esc(s.l)}</span><span class="num">${s.base ? `<s style="opacity:.55">${money(s.base)}</s> ` : ""}${money(s.v)}</span></button>`).join("")}</div></div>`; }
   const sub = cartSub(), total = sub + m.fee, below = sub < m.min, me = S.me;
   return `<div class="sheet-bg" data-a="close"><div class="sheet" data-stop>
     <div class="sh-h"><h2>Seu pedido</h2><button class="x" data-a="close">×</button></div>

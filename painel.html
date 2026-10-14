@@ -54,6 +54,28 @@
 .prod .acts{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
 .sold-out{color:var(--bad);font-weight:800;font-size:12px}
 .note-day{font-size:12px;color:var(--muted);font-weight:600}
+.cat-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pl{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.pl img,.pl .ph0{width:56px;height:56px;border-radius:12px;object-fit:cover;background:var(--surface-2);display:grid;place-items:center;color:var(--muted);font-weight:800}
+.pl b{display:block}.pl small{color:var(--muted);font-weight:600}
+.pl .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tagp{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;border-radius:7px;background:var(--warn);color:#1a1200;margin-left:6px}
+.tago{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;border-radius:7px;background:var(--bad);color:#fff;margin-left:6px}
+.modal .photo{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+.modal .photo img,.modal .photo .ph0{width:96px;height:96px;border-radius:16px;object-fit:cover;background:var(--surface-2)}
+.sizes{display:grid;gap:8px}.sizes .r{display:grid;grid-template-columns:1fr 110px 40px;gap:8px}
+.sizes input{height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 12px;font:inherit;font-weight:700;width:100%}
+.sizes .x{border-radius:12px;border:1px solid var(--line);color:var(--bad);font-weight:800}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.promo{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line)}
+.promo .t{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.promo .old{text-decoration:line-through;color:var(--muted);font-weight:600;margin-right:6px}
+.promo.off{opacity:.55}
+.state{font-size:11px;font-weight:800;padding:2px 8px;border-radius:7px}
+.state.now{background:var(--ok);color:#04220f}.state.wait{background:var(--surface-2)}.state.end{background:var(--surface-2);color:var(--muted)}
+.logo-prev{width:160px;height:160px;border-radius:24px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
+.logo-prev img{max-width:100%;max-height:100%}
+.mode{display:grid;gap:10px}
 @media (max-width:560px){.kpi.hero{grid-column:1/-1}.bar{grid-template-columns:84px 1fr 80px}}
 </style>
 </head>
@@ -61,13 +83,21 @@
 <div id="app"></div>
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
-import { SUPABASE_URL, SUPABASE_KEY, esc, hhmm, money, errMsg, isNetErr, BASE_CSS, temaSwitch, aplicaTema, parseMoney, centsToInput } from "./core.js";
+import { SUPABASE_URL, SUPABASE_KEY, sb as sbDev, makeGate, avatar, uuid, esc, hhmm, money, errMsg, isNetErr, BASE_CSS, temaSwitch, aplicaTema, parseMoney, centsToInput } from "./core.js";
 document.getElementById("base").textContent = BASE_CSS;
-// sessão do dono separada da sessão do aparelho do bar
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "dnbar-dono" } });
+// dono: sessão própria (e-mail e senha). gerente: aparelho do bar + foto e PIN.
+const sbOwner = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "dnbar-dono" } });
+let sb = sbOwner;
 const app = document.getElementById("app");
-const P = { dl: null, dlErr: "", auth: null, role: null, bar: null, tab: "resumo", period: "hoje", rep: null, loading: false, email: "", pw: "", err: "", busy: false, prods: [], cats: [], edits: {}, toast: null };
+const G = makeGate({ key: "painel", roles: ["gerente"], title: "Painel", onLogin: () => enterManager() });
+const P = { mode: null, pick: null, dl: null, dlErr: "", auth: null, role: null, bar: null, tab: "resumo", period: "hoje", rep: null, loading: false, email: "", pw: "", err: "", busy: false,
+  prods: [], cats: [], promos: [], hist: [], toast: null, modal: null };
 const MLABEL = { pix: "Pix", debito: "Débito", credito: "Crédito", dinheiro: "Dinheiro", outro: "Outro" };
+const tok = () => P.mode === "manager" ? G.token : null;
+const OWNER_TABS = [["resumo", "Resumo"], ["cardapio", "Cardápio"], ["promos", "Promoções"], ["delivery", "Delivery"], ["marca", "Logo"], ["hist", "Histórico"]];
+const MGR_TABS = [["cardapio", "Cardápio"], ["promos", "Promoções"], ["hist", "Histórico"]];
+const WD = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const imgUrl = u => u ? (/^https?:/.test(u) ? u : u) : "";
 
 // "dia do bar" vai das 6h às 6h (a noite de sexta conta como sexta)
 function range(p) {
@@ -83,13 +113,16 @@ const PERIODS = [["hoje", "Hoje"], ["ontem", "Ontem"], ["7d", "7 dias"], ["30d",
 const PREV = { hoje: "ontem", ontem: "anteontem", "7d": "7 dias anteriores", "30d": "30 dias anteriores", mes: "período anterior" };
 
 async function boot() {
-  const { data } = await sb.auth.getSession(); P.auth = data.session;
+  const { data } = await sbOwner.auth.getSession(); P.auth = data.session;
   if (P.auth) {
-    const w = await sb.rpc("whoami"); P.role = w.data && w.data.role;
-    if (P.role === "owner") { const e = await sb.from("establishments").select("name,logo_url").single(); P.bar = e.data; await loadReport(); }
+    const w = await sbOwner.rpc("whoami"); P.role = w.data && w.data.role;
+    if (P.role === "owner") { P.mode = "owner"; sb = sbOwner; await loadBar(); await loadReport(); }
   }
+  if (!P.mode) { await G.load().catch(() => { }); if (G.user) enterManager(); }
   render();
 }
+async function loadBar() { const e = await sb.from("establishments").select("id,name,logo_url").single(); P.bar = e.data; }
+async function enterManager() { P.mode = "manager"; sb = sbDev; P.tab = "cardapio"; await loadBar(); await loadMenu(); }
 async function loadReport() {
   P.loading = true; render();
   const [f, t] = range(P.period);
@@ -99,21 +132,36 @@ async function loadReport() {
   P.rep = data; render();
 }
 async function loadMenu() {
-  const [c, p] = await Promise.all([sb.from("categories").select("id,name,sort").order("sort"),
-    sb.from("products").select("id,category_id,number,name,price_cents,sizes,available,active").eq("active", true).order("sort")]);
-  P.cats = c.data || []; P.prods = p.data || []; render();
+  const [c, p] = await Promise.all([sb.from("categories").select("id,name,area,sort,active").order("sort"),
+    sb.from("products").select("id,category_id,number,name,description,image_url,price_cents,sizes,available,active,sort").eq("active", true).order("sort")]);
+  if (c.error || p.error) return toast("Não foi possível carregar", errMsg(c.error || p.error), true);
+  P.cats = c.data; P.prods = p.data; render();
 }
+async function loadPromos() {
+  if (!P.prods.length) await loadMenu();
+  const r = await sb.from("promotions").select("*").order("created_at", { ascending: false });
+  if (r.error) return toast("Não foi possível carregar", errMsg(r.error), true);
+  P.promos = r.data; render();
+}
+async function loadHist() { try { const { data, error } = await sb.rpc("catalog_history", { p_token: tok() }); if (error) throw error; P.hist = data; render(); } catch (e) { toast("Não foi possível carregar", errMsg(e), true); } }
 
 const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
 function vLogin() {
-  if (P.auth && P.role !== "owner") return `<div class="gate narrow"><h1 class="big">Conta sem acesso</h1><p class="muted">Esta conta é de aparelho do salão. O painel do dono usa o e-mail e a senha do dono.</p><button class="btn" data-a="logout">Entrar com outra conta</button></div>`;
-  return `<div class="gate narrow"><div class="gate-top"><div class="eyebrow">DNBAR · Dono</div>${temaSwitch()}</div>
-    <h1 class="big">Painel do<br>dono</h1><p class="muted">Faturamento, mais vendidos, equipe e cardápio. Entre com o seu e-mail e senha.</p>
+  if (P.pick === "manager") return G.view().replace('<div class="switch">', '<button class="btn" data-a="pickBack">Voltar</button><div class="switch">');
+  if (P.auth && P.role !== "owner" && P.pick === "owner") return `<div class="gate narrow"><h1 class="big">Conta sem acesso</h1><p class="muted">Esta conta é de aparelho do salão. O painel do dono usa o e-mail e a senha do dono.</p><button class="btn" data-a="logout">Entrar com outra conta</button></div>`;
+  if (P.pick === "owner") return `<div class="gate narrow"><div class="gate-top"><button class="back" data-a="pickBack" aria-label="Voltar">‹</button><div class="eyebrow">DNBAR · Dono</div>${temaSwitch()}</div>
+    <h1 class="big">Painel do<br>dono</h1><p class="muted">Faturamento, cardápio, promoções e delivery. Entre com o seu e-mail e senha.</p>
     <label class="field">E-mail<input type="email" data-in="email" autocomplete="username" value="${esc(P.email)}"></label>
     <label class="field">Senha<input type="password" data-in="pw" autocomplete="current-password" value="${esc(P.pw)}"></label>
-    <div class="err">${esc(P.err)}</div><button class="btn primary block" data-a="login" ${P.busy ? "disabled" : ""}>${P.busy ? "Entrando..." : "Entrar"}</button>
-    <div class="switch">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha</a> · <a href="caixa.html">Caixa</a></div></div>`;
+    <div class="err">${esc(P.err)}</div><button class="btn primary block" data-a="login" ${P.busy ? "disabled" : ""}>${P.busy ? "Entrando..." : "Entrar"}</button></div>`;
+  return `<div class="gate narrow"><div class="gate-top"><div class="eyebrow">DNBAR</div>${temaSwitch()}</div>
+    <h1 class="big">Painel</h1><p class="muted">Quem está entrando?</p>
+    <div class="mode"><button class="btn primary block" data-a="pick" data-v="owner">Sou o dono (e-mail e senha)</button>
+    <button class="btn block" data-a="pick" data-v="manager">Sou gerente (foto e PIN)</button></div>
+    <p class="muted" style="font-size:13px">O gerente mexe no cardápio e nas promoções. Faturamento e configurações ficam só com o dono.</p>
+    <div class="switch">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha</a> · <a href="caixa.html">Caixa</a> · <a href="delivery.html">Delivery</a></div></div>`;
 }
+
 function vResumo() {
   const r = P.rep;
   const chips = `<div class="chips">${PERIODS.map(([k, l]) => `<button class="chip" data-a="period" data-v="${k}" aria-pressed="${P.period === k}">${l}</button>`).join("")}</div>
@@ -153,17 +201,85 @@ function vResumo() {
     <div class="card"><h3>Caixa</h3>${r.cash.length ? `<div class="log">${r.cash.map(c => `<div class="r"><span>${c.status === "open" ? "Aberto agora" : (c.difference === 0 ? "Bateu certinho" : (c.difference > 0 ? "Sobrou " : "Faltou ") + money(Math.abs(c.difference)))}</span><small>${new Date(c.opened_at).toLocaleDateString("pt-BR")} · aberto ${hhmm(c.opened_at)} por ${esc(c.opened_by)}${c.closed_at ? ` · fechado ${hhmm(c.closed_at)} por ${esc(c.closed_by)}` : ""}</small></div>`).join("")}</div>` : `<div class="empty">Nenhum caixa no período.</div>`}</div>
   </div>`;
 }
+
+const priceTxt = p => p.sizes && p.sizes.length ? p.sizes.map(s => esc(s.l) + " " + money(s.v)).join(" · ") : p.price_cents == null ? "sem preço" : money(p.price_cents);
 function vCardapio() {
-  if (!P.prods.length) return `<div class="empty">Carregando cardápio...</div>`;
-  return `<div class="card"><h3>Preços e disponibilidade</h3><div class="sub">Mudou aqui, muda na hora em todos os celulares do salão. Fotos, novos produtos e logo chegam numa próxima versão.</div></div>
-  ${P.cats.map(c => { const ps = P.prods.filter(p => p.category_id === c.id); if (!ps.length) return "";
-    return `<div class="card"><h3>${esc(c.name)}</h3>${ps.map(p => { const e = P.edits[p.id] || {};
-      const prices = p.sizes && p.sizes.length ? p.sizes.map((s, i) => `<label>${esc(s.l)}<input inputmode="decimal" data-in="price" data-p="${p.id}" data-i="${i}" value="${esc(e["s" + i] ?? centsToInput(s.v))}"></label>`).join("")
-        : `<label>Preço<input inputmode="decimal" data-in="price" data-p="${p.id}" data-i="-1" value="${esc(e.price ?? (p.price_cents == null ? "" : centsToInput(p.price_cents)))}" placeholder="sem preço"></label>`;
-      return `<div class="prod"><span class="n">${p.number}</span><span><b>${esc(p.name)}</b> ${p.available ? "" : `<span class="sold-out">ESGOTADO</span>`}<div class="prices">${prices}</div></span>
-        <span class="acts"><button class="btn sm ${e.dirty ? "primary" : ""}" data-a="save" data-v="${p.id}" ${e.dirty ? "" : "disabled"}>Salvar</button>
-        <button class="btn sm" data-a="avail" data-v="${p.id}">${p.available ? "Marcar esgotado" : "Voltou a ter"}</button></span></div>`; }).join("")}</div>`; }).join("")}`;
+  if (!P.cats.length) return `<div class="empty">Carregando cardápio...</div>`;
+  return `<div class="card"><h3>Cardápio</h3><div class="sub">Mudou aqui, muda na hora no garçom, no caixa e no link de delivery. Pedidos já feitos mantêm o preço da hora.</div>
+      <div class="chips"><button class="btn sm primary" data-a="newCat">+ Categoria</button></div></div>
+    ${P.cats.map(c => { const ps = P.prods.filter(p => p.category_id === c.id);
+      return `<div class="card" style="${c.active ? "" : "opacity:.6"}"><div class="cat-h"><h3>${esc(c.name)} <small class="muted">· ${c.area === "bar" ? "vai pro bar" : "vai pra cozinha"}${c.active ? "" : " · oculta"}</small></h3>
+        <span class="chips"><button class="btn sm" data-a="editCat" data-v="${c.id}">Editar</button><button class="btn sm primary" data-a="newProd" data-v="${c.id}">+ Produto</button></span></div>
+        ${ps.map(p => `<div class="pl">${p.image_url ? `<img src="${esc(imgUrl(p.image_url))}" alt="" loading="lazy">` : `<span class="ph0">${p.number}</span>`}
+          <span><b>${p.number} · ${esc(p.name)}${p.available ? "" : `<span class="tago">ESGOTADO</span>`}${P.promos.some(r => r.product_id === p.id && r.active) ? `<span class="tagp">PROMO</span>` : ""}</b><small>${priceTxt(p)}</small></span>
+          <span class="acts"><button class="btn sm" data-a="avail" data-v="${p.id}">${p.available ? "Esgotou" : "Voltou"}</button><button class="btn sm" data-a="editProd" data-v="${p.id}">Editar</button></span></div>`).join("") || `<div class="empty">Nenhum produto nesta categoria.</div>`}</div>`; }).join("")}`;
 }
+function promoWhen(r) {
+  if (r.kind === "periodo") return "De " + new Date(r.starts_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) + " até " + new Date(r.ends_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  return (r.weekdays.length === 7 ? "Todos os dias" : r.weekdays.slice().sort().map(d => WD[d]).join(", ")) + ", das " + r.start_time.slice(0, 5) + " às " + r.end_time.slice(0, 5);
+}
+function promoState(r) {
+  if (!r.active) return ["end", "Encerrada"];
+  if (r.kind === "periodo") { const n = Date.now(); if (n < new Date(r.starts_at)) return ["wait", "Agendada"]; if (n >= new Date(r.ends_at)) return ["end", "Terminou"]; return ["now", "Valendo agora"]; }
+  const d = new Date(), t = d.toTimeString().slice(0, 5), on = r.weekdays.includes(d.getDay()) && (r.start_time.slice(0, 5) <= r.end_time.slice(0, 5) ? t >= r.start_time.slice(0, 5) && t < r.end_time.slice(0, 5) : t >= r.start_time.slice(0, 5) || t < r.end_time.slice(0, 5));
+  return on ? ["now", "Valendo agora"] : ["wait", "Fora do horário"];
+}
+function vPromos() {
+  const CH = { todos: "Salão e delivery", salao: "Só salão", delivery: "Só delivery" };
+  return `<div class="card"><h3>Promoções</h3><div class="sub">O sistema liga e desliga sozinho no horário certo. O garçom e o cliente veem a etiqueta PROMO com o preço antigo riscado.</div>
+      <button class="btn primary" data-a="newPromo">+ Nova promoção</button></div>
+    <div class="card">${P.promos.length ? P.promos.map(r => { const p = P.prods.find(x => x.id === r.product_id); if (!p) return "";
+      const base = r.size_label ? ((p.sizes || []).find(s => s.l === r.size_label) || {}).v : p.price_cents; const [cls, st] = promoState(r);
+      return `<div class="promo ${r.active ? "" : "off"}"><div class="t"><b>${esc(p.name)}${r.size_label ? " (" + esc(r.size_label) + ")" : ""}${r.label ? ` · ${esc(r.label)}` : ""}</b><span class="state ${cls}">${st}</span></div>
+        <div><span class="old num">${money(base)}</span><b class="num">${money(r.promo_price_cents)}</b></div>
+        <small class="muted">${promoWhen(r)} · ${CH[r.channel]}</small>
+        <div class="chips">${r.active ? `<button class="btn sm" data-a="editPromo" data-v="${r.id}">Editar</button><button class="btn sm" data-a="promoOff" data-v="${r.id}">Encerrar</button>` : `<button class="btn sm" data-a="promoOn" data-v="${r.id}">Reativar</button>`}</div></div>`; }).join("") : `<div class="empty">Nenhuma promoção ainda.</div>`}</div>`;
+}
+function vMarca() {
+  return `<div class="card"><h3>Logo do bar</h3><div class="sub">Aparece na tela de entrada da equipe e no link de pedidos. Use PNG com fundo transparente, quadrado.</div>
+    <div class="logo-prev">${P.bar && P.bar.logo_url ? `<img src="${esc(imgUrl(P.bar.logo_url))}" alt="Logo">` : `<span class="muted">Sem logo</span>`}</div>
+    <label class="btn primary" style="cursor:pointer">Escolher imagem<input type="file" accept="image/png,image/jpeg,image/webp" data-file="logo" hidden></label>
+    ${P.bar && P.bar.logo_url ? `<button class="btn" data-a="logoOff">Remover logo</button>` : ""}</div>`;
+}
+function vHist() {
+  return `<div class="card"><h3>Histórico de alterações</h3><div class="sub">Quem mudou o quê no cardápio, nas promoções e no delivery.</div>
+    <div class="log">${P.hist.map(h => `<div class="r"><span>${esc(h.msg)}</span><small>${new Date(h.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</small></div>`).join("") || `<div class="empty">Nada registrado ainda.</div>`}</div></div>`;
+}
+function vModal() {
+  const m = P.modal; if (!m) return "";
+  const head = t => `<div class="modal-h"><h2>${t}</h2><button class="back" data-a="mx" aria-label="Fechar">×</button></div>`;
+  let b = "";
+  if (m.type === "cat") b = head(m.id ? "Editar categoria" : "Nova categoria") + `<label class="field">Nome<input data-in="m" data-k="name" value="${esc(m.name || "")}" placeholder="Ex.: Açaí, Drinks, Porções"></label>
+    <div class="eyebrow">Os pedidos dessa categoria vão para</div><div class="chips"><button class="chip" data-a="mset" data-k="area" data-v="cozinha" aria-pressed="${m.area === "cozinha"}">Cozinha</button><button class="chip" data-a="mset" data-k="area" data-v="bar" aria-pressed="${m.area === "bar"}">Bar</button></div>
+    ${m.id ? `<button class="chip" data-a="mset" data-k="active" data-v="${!m.active}" aria-pressed="${!m.active}">${m.active ? "Ocultar categoria" : "Mostrar categoria de novo"}</button>` : ""}
+    <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="saveCat" ${P.busy ? "disabled" : ""}>Salvar</button>`;
+  if (m.type === "prod") b = head(m.id ? "Editar produto" : "Novo produto") + `
+    <div class="photo">${m.image_url ? `<img src="${esc(imgUrl(m.image_url))}" alt="">` : `<span class="ph0"></span>`}
+      <span class="chips"><label class="btn sm primary" style="cursor:pointer">${m.uploading ? "Enviando..." : m.image_url ? "Trocar foto" : "Colocar foto"}<input type="file" accept="image/*" data-file="prod" hidden></label>${m.image_url ? `<button class="btn sm" data-a="mset" data-k="image_url" data-v="">Tirar foto</button>` : ""}</span></div>
+    <div class="row2"><label class="field">Nome<input data-in="m" data-k="name" value="${esc(m.name || "")}"></label><label class="field">Número no cardápio<input data-in="m" data-k="number" inputmode="numeric" value="${esc(m.number ?? "")}" placeholder="automático"></label></div>
+    <label class="field">Descrição (aparece no delivery)<input data-in="m" data-k="description" value="${esc(m.description || "")}" placeholder="Ex.: 500 g, serve 2 pessoas"></label>
+    <label class="field">Categoria<select data-in="m" data-k="category_id">${P.cats.map(c => `<option value="${c.id}" ${c.id === m.category_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+    <div class="chips"><button class="chip" data-a="mset" data-k="multi" data-v="false" aria-pressed="${!m.multi}">Preço único</button><button class="chip" data-a="mset" data-k="multi" data-v="true" aria-pressed="${!!m.multi}">Tamanhos (P, G, 300 ml...)</button></div>
+    ${m.multi ? `<div class="sizes">${m.sizes.map((s, i) => `<div class="r"><input data-in="size" data-k="l" data-i="${i}" value="${esc(s.l)}" placeholder="Tamanho"><input data-in="size" data-k="v" data-i="${i}" inputmode="decimal" value="${esc(s.v)}" placeholder="R$"><button class="x" data-a="sizeDel" data-v="${i}">×</button></div>`).join("")}
+      <button class="btn sm" data-a="sizeAdd">+ Tamanho</button></div>`
+      : `<label class="field">Preço (R$)<input data-in="m" data-k="price" inputmode="decimal" value="${esc(m.price ?? "")}" placeholder="Ex.: 26,00"></label>`}
+    <button class="chip" data-a="mset" data-k="available" data-v="${!m.available}" aria-pressed="${!m.available}">${m.available ? "Disponível (tocar para marcar esgotado)" : "Esgotado (tocar para disponibilizar)"}</button>
+    <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="saveProd" ${P.busy || m.uploading ? "disabled" : ""}>Salvar produto</button>
+    ${m.id ? `<button class="btn bad block" data-a="removeProd">Tirar do cardápio</button>` : ""}`;
+  if (m.type === "promo") { const p = P.prods.find(x => x.id === m.product_id);
+    b = head(m.id ? "Editar promoção" : "Nova promoção") + `
+    <label class="field">Produto<select data-in="m" data-k="product_id"><option value="">Escolha...</option>${P.cats.map(c => { const ps = P.prods.filter(x => x.category_id === c.id); return ps.length ? `<optgroup label="${esc(c.name)}">${ps.map(x => `<option value="${x.id}" ${x.id === m.product_id ? "selected" : ""}>${x.number} · ${esc(x.name)}</option>`).join("")}</optgroup>` : ""; }).join("")}</select></label>
+    ${p && p.sizes && p.sizes.length ? `<label class="field">Tamanho<select data-in="m" data-k="size_label">${p.sizes.map(s => `<option value="${esc(s.l)}" ${s.l === m.size_label ? "selected" : ""}>${esc(s.l)} (${money(s.v)})</option>`).join("")}</select></label>` : p ? `<div class="muted">Preço normal: ${money(p.price_cents)}</div>` : ""}
+    <div class="row2"><label class="field">Preço na promoção (R$)<input data-in="m" data-k="price" inputmode="decimal" value="${esc(m.price || "")}"></label><label class="field">Nome (opcional)<input data-in="m" data-k="label" value="${esc(m.label || "")}" placeholder="Happy hour"></label></div>
+    <div class="chips"><button class="chip" data-a="mset" data-k="kind" data-v="happy" aria-pressed="${m.kind === "happy"}">Happy hour (dias e horário)</button><button class="chip" data-a="mset" data-k="kind" data-v="periodo" aria-pressed="${m.kind === "periodo"}">Período (data de início e fim)</button></div>
+    ${m.kind === "happy" ? `<div class="chips">${WD.map((d, i) => `<button class="chip" data-a="wd" data-v="${i}" aria-pressed="${m.weekdays.includes(i)}">${d}</button>`).join("")}</div>
+      <div class="row2"><label class="field">Começa às<input type="time" data-in="m" data-k="start_time" value="${esc(m.start_time || "")}"></label><label class="field">Termina às<input type="time" data-in="m" data-k="end_time" value="${esc(m.end_time || "")}"></label></div>`
+      : `<div class="row2"><label class="field">Começa em<input type="datetime-local" data-in="m" data-k="starts_at" value="${esc(m.starts_at || "")}"></label><label class="field">Termina em<input type="datetime-local" data-in="m" data-k="ends_at" value="${esc(m.ends_at || "")}"></label></div>`}
+    <div class="eyebrow">Vale para</div><div class="chips">${[["todos", "Salão e delivery"], ["salao", "Só salão"], ["delivery", "Só delivery"]].map(([k, l]) => `<button class="chip" data-a="mset" data-k="channel" data-v="${k}" aria-pressed="${m.channel === k}">${l}</button>`).join("")}</div>
+    <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="savePromo" ${P.busy ? "disabled" : ""}>Salvar promoção</button>`; }
+  return `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">${b}</div></div>`;
+}
+
 async function loadDl() {
   const { data, error } = await sb.from("establishments").select("plan,slug,delivery_open,whatsapp,pix_key,pix_key_type,pix_merchant_name,pix_city,delivery_fee_cents,min_order_cents,delivery_eta_min").single();
   if (error) return toast("Não foi possível carregar", errMsg(error), true);
@@ -184,37 +300,78 @@ function vDelivery() {
     <div class="card"><h3>Entrega</h3>${f("whatsapp", "WhatsApp do restaurante (com DDD)", "65999999999", "tel")}${f("fee", "Taxa de entrega (R$)", "0,00", "decimal")}${f("min", "Pedido mínimo (R$)", "0,00", "decimal")}${f("delivery_eta_min", "Tempo estimado (minutos)", "45", "numeric")}
       <div class="err">${esc(P.dlErr)}</div><button class="btn primary block" data-a="saveDl">Salvar configurações</button></div>`;
 }
+
 function render() {
-  const f = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.in;
-  const fp = f && document.activeElement.dataset.p, fi = f && document.activeElement.dataset.i;
-  if (!P.auth || P.role !== "owner") app.innerHTML = vLogin();
-  else app.innerHTML = `<header class="ph"><div class="grow"><div class="eyebrow">${esc(P.bar ? P.bar.name : "")}</div><h1>Painel do dono</h1></div>${temaSwitch()}<button class="btn sm" data-a="logout">Sair</button></header>
-    <div class="tabs chips"><button class="chip" data-a="tab" data-v="resumo" aria-pressed="${P.tab === "resumo"}">Resumo</button><button class="chip" data-a="tab" data-v="cardapio" aria-pressed="${P.tab === "cardapio"}">Cardápio</button><button class="chip" data-a="tab" data-v="delivery" aria-pressed="${P.tab === "delivery"}">Delivery</button><button class="chip" data-a="reload">Atualizar</button></div>
-    <main class="wrap"><div class="inner">${P.tab === "resumo" ? vResumo() : P.tab === "delivery" ? vDelivery() : vCardapio()}</div></main>`;
+  const ae = document.activeElement, f = ae && ae.dataset && ae.dataset.in, fk = f && ae.dataset.k, fi = f && ae.dataset.i;
+  if (!P.mode) { app.innerHTML = vLogin(); }
+  else {
+    const tabs = P.mode === "owner" ? OWNER_TABS : MGR_TABS;
+    const who = P.mode === "owner" ? "Painel do dono" : "Painel do gerente";
+    const V = { resumo: vResumo, cardapio: vCardapio, promos: vPromos, delivery: vDelivery, marca: vMarca, hist: vHist }[P.tab] || vCardapio;
+    app.innerHTML = `<header class="ph">${P.bar && P.bar.logo_url ? `<img src="${esc(imgUrl(P.bar.logo_url))}" alt="" style="width:40px;height:40px;object-fit:contain">` : ""}<div class="grow"><div class="eyebrow">${esc(P.bar ? P.bar.name : "")}</div><h1>${who}</h1></div>${temaSwitch()}${P.mode === "manager" ? avatar(G.user, 34) : ""}<button class="btn sm" data-a="logout">Sair</button></header>
+      <div class="tabs chips">${tabs.map(([k, l]) => `<button class="chip" data-a="tab" data-v="${k}" aria-pressed="${P.tab === k}">${l}</button>`).join("")}<button class="chip" data-a="reload">Atualizar</button></div>
+      <main class="wrap"><div class="inner">${V()}</div></main>${vModal()}`;
+  }
   if (P.toast) app.insertAdjacentHTML("beforeend", `<div class="toast ${P.toast.bad ? "bad" : ""}">${esc(P.toast.t)}${P.toast.s ? `<small>${esc(P.toast.s)}</small>` : ""}</div>`);
-  if (f) { const el = app.querySelector(fp ? `[data-in="${f}"][data-p="${fp}"][data-i="${fi}"]` : `[data-in="${f}"]`); if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
+  if (f) { const sel = `[data-in="${f}"]` + (fk ? `[data-k="${fk}"]` : "") + (fi != null ? `[data-i="${fi}"]` : ""); const el = app.querySelector(sel); if (el && el.tagName !== "SELECT") { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
 }
 function toast(t, s, bad) { P.toast = { t, s, bad }; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { P.toast = null; render(); }, 3000); }
 
+// reduz a imagem no aparelho antes de subir (foto: JPEG 900px; logo: PNG 512px com transparência)
+async function shrink(file, max, type) {
+  const bmp = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return await new Promise(res => c.toBlob(res, type, .84));
+}
+async function upload(file, kind) {
+  const isLogo = kind === "logo", type = isLogo ? "image/png" : "image/jpeg";
+  const blob = await shrink(file, isLogo ? 512 : 900, type);
+  const path = `${P.bar.id}/${isLogo ? "logo-" : ""}${uuid()}.${isLogo ? "png" : "jpg"}`;
+  const { error } = await sb.storage.from("media").upload(path, blob, { contentType: type, upsert: false });
+  if (error) throw error;
+  return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
+}
+const toLocalInput = ts => { if (!ts) return ""; const d = new Date(ts); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+function prodPayload(p, over) {
+  const o = Object.assign({ id: p.id, category_id: p.category_id, number: p.number, name: p.name, description: p.description || "", image_url: p.image_url || "", available: p.available,
+    price_cents: p.price_cents, sizes: p.sizes || null }, over || {});
+  return o;
+}
+
+app.addEventListener("change", async e => {
+  const k = e.target.dataset.file; if (!k || !e.target.files || !e.target.files[0]) return;
+  const file = e.target.files[0];
+  try {
+    if (k === "prod") { P.modal.uploading = true; render(); P.modal.image_url = await upload(file, "prod"); P.modal.uploading = false; render(); }
+    if (k === "logo") { toast("Enviando logo...", ""); const url = await upload(file, "logo"); const { error } = await sb.rpc("set_logo", { p_url: url }); if (error) throw error; await loadBar(); toast("Logo atualizado", "Já aparece no login e no link de pedidos"); }
+  } catch (err) { if (P.modal) { P.modal.uploading = false; P.modal.err = "Não foi possível enviar a imagem. " + errMsg(err); render(); } else toast("Não deu certo", errMsg(err), true); }
+});
 app.addEventListener("input", e => {
   const d = e.target.dataset;
+  if (P.pick === "manager" && !P.mode && G.input(d.in, e.target.value)) return;
   if (d.in === "email" || d.in === "pw") { P[d.in] = e.target.value; return; }
   if (d.in === "dl") { P.dl[d.k] = e.target.value; if (d.k === "pix_key_type") render(); return; }
-  if (d.in === "price") { const ed = P.edits[d.p] = P.edits[d.p] || {}; if (d.i === "-1") ed.price = e.target.value; else ed["s" + d.i] = e.target.value; const was = ed.dirty; ed.dirty = true; if (!was) render(); }
+  if (d.in === "m" && P.modal) { P.modal[d.k] = e.target.value; if (d.k === "product_id" || d.k === "category_id") { if (d.k === "product_id") { const p = P.prods.find(x => x.id === e.target.value); P.modal.size_label = p && p.sizes && p.sizes.length ? p.sizes[0].l : null; } render(); } return; }
+  if (d.in === "size" && P.modal) { P.modal.sizes[+d.i][d.k] = e.target.value; return; }
 });
 app.addEventListener("click", async e => {
   const el = e.target.closest("[data-a]"); if (!el) return;
-  const a = el.dataset.a, v = el.dataset.v;
+  const a = el.dataset.a, v = el.dataset.v, m = P.modal;
+  if (!P.mode && P.pick === "manager" && await G.click(a, v, render)) return;
+  try {
   switch (a) {
     case "tema": aplicaTema(v); break;
+    case "pick": P.pick = v; P.err = ""; if (v === "manager") { await G.load().catch(() => { }); if (G.user) { await enterManager(); } } break;
+    case "pickBack": P.pick = null; break;
     case "login": {
       P.busy = true; P.err = ""; render();
-      const { error } = await sb.auth.signInWithPassword({ email: P.email.trim(), password: P.pw });
+      const { error } = await sbOwner.auth.signInWithPassword({ email: P.email.trim(), password: P.pw });
       P.busy = false; if (error) { P.err = isNetErr(error) ? "Sem conexão com a internet." : "E-mail ou senha incorretos."; render(); return; }
       P.pw = ""; await boot(); return;
     }
-    case "logout": await sb.auth.signOut(); P.auth = null; P.role = null; P.rep = null; break;
-    case "tab": P.tab = v; if (v === "cardapio") { render(); await loadMenu(); return; } if (v === "delivery") { render(); await loadDl(); return; } break;
+    case "logout": if (P.mode === "manager") G.logout(); else await sbOwner.auth.signOut(); P.auth = null; P.role = null; P.rep = null; P.mode = null; P.pick = null; P.tab = "resumo"; sb = sbOwner; break;
+    case "tab": P.tab = v; render(); if (v === "cardapio") await loadPromosQuiet(); if (v === "promos") await loadPromos(); if (v === "delivery") await loadDl(); if (v === "hist") await loadHist(); if (v === "resumo") await loadReport(); return;
     case "copyLink": try { await navigator.clipboard.writeText(v); toast("Link copiado", ""); } catch (err) { toast("Copie o link", v); } return;
     case "saveDl": { const d = P.dl; P.dlErr = "";
       const fee = parseMoney(d.fee || "0"), min = parseMoney(d.min || "0");
@@ -224,21 +381,57 @@ app.addEventListener("click", async e => {
       if (error) { P.dlErr = errMsg(error); break; }
       await loadDl(); toast("Delivery atualizado", "Já vale no link dos clientes"); return; }
     case "period": P.period = v; await loadReport(); return;
-    case "reload": if (P.tab === "cardapio") await loadMenu(); else if (P.tab === "delivery") await loadDl(); else await loadReport(); return;
-    case "save": case "avail": {
-      const p = P.prods.find(x => x.id === v), ed = P.edits[v] || {};
-      let price = null, sizes = null, avail = null;
-      if (a === "avail") avail = !p.available;
-      if (p.sizes && p.sizes.length) { sizes = p.sizes.map((s, i) => ({ l: s.l, v: ed["s" + i] != null ? parseMoney(ed["s" + i]) : s.v })); if (sizes.some(s => s.v == null || s.v < 0)) return toast("Preço inválido", "", true); }
-      else { price = ed.price != null ? (ed.price.trim() === "" ? null : parseMoney(ed.price)) : p.price_cents; if (ed.price != null && ed.price.trim() !== "" && price == null) return toast("Preço inválido", "", true); }
-      const { error } = await sb.rpc("owner_update_product", { p_product_id: v, p_price_cents: price, p_sizes: sizes, p_available: avail });
-      if (error) return toast("Não deu certo", errMsg(error), true);
-      delete P.edits[v]; await loadMenu(); toast(a === "avail" ? (avail ? "Produto disponível de novo" : "Marcado como esgotado") : "Preço atualizado", p.name); return;
-    }
+    case "reload": if (P.tab === "cardapio") await loadMenu(); else if (P.tab === "promos") await loadPromos(); else if (P.tab === "delivery") await loadDl(); else if (P.tab === "hist") await loadHist(); else if (P.tab === "resumo") await loadReport(); return;
+    case "mx": P.modal = null; break;
+    case "mset": m[el.dataset.k] = v === "true" ? true : v === "false" ? false : v; if (el.dataset.k === "multi" && m.multi && !m.sizes.length) m.sizes = [{ l: "Pequena", v: "" }, { l: "Grande", v: "" }]; break;
+    case "sizeAdd": m.sizes.push({ l: "", v: "" }); break;
+    case "sizeDel": m.sizes.splice(+v, 1); break;
+    case "wd": { const i = +v, k = m.weekdays.indexOf(i); k > -1 ? m.weekdays.splice(k, 1) : m.weekdays.push(i); break; }
+    case "newCat": P.modal = { type: "cat", area: "cozinha", active: true }; break;
+    case "editCat": { const c = P.cats.find(x => x.id === v); P.modal = { type: "cat", ...c }; break; }
+    case "saveCat": { if (!String(m.name || "").trim()) { m.err = "Digite o nome."; break; } P.busy = true;
+      const { error } = await sb.rpc("catalog_save_category", { p_token: tok(), p: { id: m.id || null, name: m.name, area: m.area, active: m.active } }); P.busy = false;
+      if (error) { m.err = errMsg(error); break; } P.modal = null; await loadMenu(); toast("Categoria salva", ""); return; }
+    case "newProd": P.modal = { type: "prod", category_id: v, available: true, multi: false, sizes: [], price: "", image_url: "" }; break;
+    case "editProd": { const p = P.prods.find(x => x.id === v); P.modal = { type: "prod", ...p, multi: !!(p.sizes && p.sizes.length), sizes: (p.sizes || []).map(s => ({ l: s.l, v: centsToInput(s.v) })), price: p.price_cents == null ? "" : centsToInput(p.price_cents) }; break; }
+    case "saveProd": case "removeProd": {
+      if (!String(m.name || "").trim()) { m.err = "Digite o nome."; break; }
+      let sizes = null, price = null;
+      if (m.multi) { sizes = m.sizes.filter(s => String(s.l).trim() || String(s.v).trim()).map(s => ({ l: String(s.l).trim(), v: parseMoney(s.v) })); if (!sizes.length || sizes.some(s => !s.l || s.v == null)) { m.err = "Preencha nome e preço de cada tamanho."; break; } }
+      else { price = String(m.price || "").trim() === "" ? null : parseMoney(m.price); if (String(m.price || "").trim() !== "" && price == null) { m.err = "Preço inválido."; break; } }
+      if (a === "removeProd" && !confirm("Tirar " + m.name + " do cardápio? Ele some do garçom e do delivery. Os relatórios antigos continuam.")) return;
+      P.busy = true;
+      const { error } = await sb.rpc("catalog_save_product", { p_token: tok(), p: { id: m.id || null, category_id: m.category_id, number: String(m.number ?? "").trim() || null, name: m.name, description: m.description || "",
+        image_url: m.image_url || "", available: m.available, price_cents: price, sizes, active: a === "removeProd" ? false : true } });
+      P.busy = false; if (error) { m.err = errMsg(error); break; }
+      P.modal = null; await loadMenu(); toast(a === "removeProd" ? "Produto retirado" : "Produto salvo", m.name); return; }
+    case "avail": { const p = P.prods.find(x => x.id === v);
+      const { error } = await sb.rpc("catalog_save_product", { p_token: tok(), p: prodPayload(p, { available: !p.available }) });
+      if (error) return toast("Não deu certo", errMsg(error), true); await loadMenu(); toast(p.available ? "Marcado como esgotado" : "Disponível de novo", p.name); return; }
+    case "newPromo": { const now = new Date(); P.modal = { type: "promo", kind: "happy", weekdays: [1, 2, 3, 4, 5], start_time: "17:00", end_time: "20:00", channel: "todos",
+        starts_at: toLocalInput(now), ends_at: toLocalInput(new Date(now.getTime() + 7 * 864e5)) }; break; }
+    case "editPromo": { const r = P.promos.find(x => x.id === v); P.modal = { type: "promo", id: r.id, product_id: r.product_id, size_label: r.size_label, price: centsToInput(r.promo_price_cents), label: r.label || "", kind: r.kind,
+        weekdays: r.weekdays || [1, 2, 3, 4, 5], start_time: (r.start_time || "17:00").slice(0, 5), end_time: (r.end_time || "20:00").slice(0, 5), channel: r.channel, starts_at: toLocalInput(r.starts_at), ends_at: toLocalInput(r.ends_at) }; break; }
+    case "savePromo": {
+      const p = P.prods.find(x => x.id === m.product_id); if (!p) { m.err = "Escolha o produto."; break; }
+      const price = parseMoney(m.price); if (!price) { m.err = "Digite o preço da promoção."; break; }
+      const base = p.sizes && p.sizes.length ? (p.sizes.find(s => s.l === (m.size_label || p.sizes[0].l)) || {}).v : p.price_cents;
+      if (base != null && price >= base) { m.err = "O preço da promoção precisa ser menor que o normal (" + money(base) + ")."; break; }
+      if (m.kind === "happy" && !m.weekdays.length) { m.err = "Escolha pelo menos um dia."; break; }
+      P.busy = true;
+      const { error } = await sb.rpc("promo_save", { p_token: tok(), p: { id: m.id || null, product_id: p.id, size_label: p.sizes && p.sizes.length ? (m.size_label || p.sizes[0].l) : null, promo_price_cents: price, label: m.label || "", kind: m.kind,
+        weekdays: m.weekdays, start_time: m.start_time, end_time: m.end_time, channel: m.channel,
+        starts_at: m.kind === "periodo" && m.starts_at ? new Date(m.starts_at).toISOString() : null, ends_at: m.kind === "periodo" && m.ends_at ? new Date(m.ends_at).toISOString() : null } });
+      P.busy = false; if (error) { m.err = errMsg(error); break; }
+      P.modal = null; await loadPromos(); toast("Promoção salva", "Ela liga e desliga sozinha no horário"); return; }
+    case "promoOff": case "promoOn": { const { error } = await sb.rpc("promo_set_active", { p_token: tok(), p_id: v, p_active: a === "promoOn" }); if (error) throw error; await loadPromos(); toast(a === "promoOn" ? "Promoção reativada" : "Promoção encerrada", ""); return; }
+    case "logoOff": { if (!confirm("Remover o logo?")) return; const { error } = await sb.rpc("set_logo", { p_url: "" }); if (error) throw error; await loadBar(); toast("Logo removido", ""); return; }
   }
+  } catch (err) { if (P.modal) { P.modal.err = errMsg(err); } else toast("Não deu certo", errMsg(err), true); }
   render();
 });
-document.addEventListener("keydown", e => { if (e.key === "Enter" && (!P.auth || P.role !== "owner")) app.querySelector('[data-a="login"]')?.click(); });
+async function loadPromosQuiet() { await loadMenu(); const r = await sb.from("promotions").select("*").order("created_at", { ascending: false }); if (!r.error) { P.promos = r.data; render(); } }
+document.addEventListener("keydown", e => { if (!P.mode && P.pick === "manager") { G.key(e, render); return; } if (e.key === "Escape" && P.modal) { P.modal = null; render(); return; } if (e.key === "Enter" && !P.mode && P.pick === "owner") app.querySelector('[data-a="login"]')?.click(); });
 document.addEventListener("gesturestart", e => e.preventDefault());
 render(); boot().catch(err => toast("Erro ao carregar", errMsg(err), true));
 </script>

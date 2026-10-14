@@ -99,6 +99,8 @@ async function loadMenu() {
   pr.data.forEach(p => { if (!p.available) return;
     if (p.sizes && p.sizes.length) p.sizes.forEach(s => C.menu.push({ key: p.id + "|" + s.l, id: p.id, size: s.l, name: p.name + " (" + s.l.toLowerCase() + ")", n: p.number, price: s.v }));
     else if (p.price_cents != null) C.menu.push({ key: p.id + "|", id: p.id, size: null, name: p.name, n: p.number, price: p.price_cents }); });
+  const pr = await sb.rpc("current_promos", { p_channel: "salao" });
+  (pr.data || []).forEach(r => { const m = C.menu.find(x => x.id === r.product_id && (x.size || null) === (r.size || null)); if (m) { m.base = m.price; m.price = r.price; m.name += " (promo)"; } });
 }
 async function loadLive() {
   if (!G.user) return;

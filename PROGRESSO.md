@@ -42,6 +42,15 @@
 ## Próximo no delivery (v2)
 - Conectar Mercado Pago do restaurante (OAuth), Pix dinâmico e confirmação automática por webhook conferida na API. Tabela `payment_connections`, token no Supabase Vault.
 
+## Etapa 4 - concluída (14/10/2026): cardápio editável, fotos, promoções e logo
+- Painel (`painel.html`) tem duas entradas: **dono** (e-mail e senha, vê tudo) e **gerente** (foto + PIN no aparelho do bar, vê só Cardápio, Promoções e Histórico).
+- Cardápio: criar/editar categoria (nome, cozinha ou bar, ocultar), criar/editar produto (foto, nome, número, descrição, preço único ou tamanhos, esgotado), tirar do cardápio.
+- Fotos e logo vão para o Supabase Storage (bucket `media`, pasta por bar). A imagem é reduzida no aparelho antes de subir.
+- Promoções (`promotions`): "happy hour" (dias da semana + horário) ou "período" (data de início e fim), por produto/tamanho, valendo para salão, delivery ou os dois. O preço é decidido no servidor (`_price`), que também é usado em `create_order`, `counter_sale` e `public_create_order`.
+- Etiqueta PROMO com preço riscado no garçom, no caixa (venda balcão) e no link de delivery.
+- Histórico de alterações (`catalog_history`): quem mudou o quê.
+- Logo do Cumbuca's: `logos/cumbucas.png` (aparece no login, no painel e no link de pedidos).
+
 ## Pendências conhecidas
 - Trocar os PINs de teste (1234) antes de uso real.
 - Cadastro público bloqueado no banco (migração 003). Reforço opcional: desligar "Allow new users to sign up" no painel do Supabase.

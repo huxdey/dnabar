@@ -489,17 +489,28 @@ function kickOut(){
 
 async function loadStatic(){
   const [est, st, tb, ca, pr] = await Promise.all([
-    sb.from("establishments").select("id,name,service_fee_pct,kitchen_enabled").single(),
+    sb.from("establishments").select("id,name,service_fee_pct,kitchen_enabled,logo_url").single(),
     sb.from("staff").select("id,name,role,role_label,photo_url,portrait_url").eq("active",true).order("sort"),
     sb.from("dining_tables").select("id,label,area,sort").eq("active",true).order("sort"),
     sb.from("categories").select("id,slug,name,hue,area,sort").eq("active",true).order("sort"),
     sb.from("products").select("id,category_id,number,name,image_url,icon,price_cents,sizes,available,sort").eq("active",true).order("sort")
   ]);
   for(const r of [est,st,tb,ca,pr]) if(r.error) throw r.error;
-  BAR = { name:est.data.name, serviceFee:Number(est.data.service_fee_pct)/100, kitchen:est.data.kitchen_enabled };
+  BAR = { name:est.data.name, serviceFee:Number(est.data.service_fee_pct)/100, kitchen:est.data.kitchen_enabled, logo:est.data.logo_url };
   STAFF = st.data.filter(p=>p.role==="garcom"||p.role==="gerente").map(p=>({id:p.id,name:p.name,role:p.role_label,photo:p.photo_url||"img/avatar.png",portrait:p.portrait_url||p.photo_url||"img/avatar.png"}));
   buildMenu(ca.data, pr.data);
   TABLES = tb.data.map(t=>({id:t.label, dbid:t.id, area:t.area, s:null}));
+  await loadPromos();
+}
+// promoções valendo agora (o servidor decide o preço; aqui é só para mostrar)
+async function loadPromos(){
+  const {data,error} = await sb.rpc("current_promos",{p_channel:"salao"}); if(error) return;
+  ALL.forEach(b=>{ b.promo=null; if(b.prices) b.prices.forEach(x=>x.pv=null); });
+  Object.values(PROD).forEach(p=>{ if(p.base0==null) p.base0=p.price; p.price=p.base0; p.promo=false; });
+  (data||[]).forEach(r=>{ const b=ALL.find(x=>x.id===r.product_id); if(!b) return;
+    const pid=b.n+(r.size?"-"+r.size[0]:""); const P2=PROD[pid]; if(!P2) return;
+    P2.price=r.price; P2.promo=true; P2.label=r.label;
+    if(r.size&&b.prices){ const x=b.prices.find(z=>z.l===r.size); if(x) x.pv=r.price; } else b.promo=r.price; });
 }
 
 async function loadLive(){
@@ -539,6 +550,7 @@ function subscribe(){
       scheduleLive();})
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"session_events"},scheduleLive)
     .on("postgres_changes",{event:"*",schema:"public",table:"payments"},scheduleLive)
+    .on("postgres_changes",{event:"*",schema:"public",table:"promotions"},async()=>{ await loadPromos(); render(); })
     .on("postgres_changes",{event:"*",schema:"public",table:"products"},async()=>{ try{ await loadStatic(); await loadLive(); render(); }catch(e){} })
     .subscribe();
 }
@@ -569,6 +581,7 @@ window.addEventListener("online",()=>{render(); flushQueue(); scheduleLive();});
 window.addEventListener("offline",()=>render());
 setInterval(()=>{ flushQueue(); },5000);
 setInterval(()=>{ if(S.auth&&S.loaded) scheduleLive(); },30000);
+setInterval(async()=>{ if(S.auth&&S.loaded){ await loadPromos(); render(); } },60000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&S.auth&&S.loaded){ scheduleLive(); flushQueue(); } });
 
 async function boot(){
@@ -651,6 +664,7 @@ function vLogin(){
   }
   return `<div class="login">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="eyebrow">${esc(BAR.name)}</div>${temaSwitch()}</div>
+    ${BAR.logo?`<img src="${esc(BAR.logo)}" alt="${esc(BAR.name)}" style="width:72px;height:72px;object-fit:contain;margin-top:-8px">`:""}
     <div style="margin-top:-12px"><div class="brandmark">Quem está no<br><span class="grad-text">salão hoje?</span></div></div>
     <div class="people">${STAFF.map(p=>`<button class="person" data-a="who" data-v="${p.id}" aria-label="${esc(p.name)}, ${p.role}"><img src="${p.portrait}" alt=""><span class="cap"><b>${esc(p.name)}</b><span class="role">${p.role}</span></span></button>`).join("")}</div>
     <div class="demo-tag">Outras telas: <a href="cozinha.html" style="color:var(--fg)">Cozinha/Bar</a> · <a href="caixa.html" style="color:var(--fg)">Caixa</a> · <a href="delivery.html" style="color:var(--fg)">Delivery</a> · <a href="painel.html" style="color:var(--fg)">Dono</a></div>
@@ -748,10 +762,11 @@ function vMesa(){
 function card(base,i){
   const inCart=S.cart.filter(c=>PROD[c.pid].n===base.n).reduce((a,c)=>a+c.qty,0);
   const off=(base.price===null&&!base.prices)||base.available===false;
-  const pr=base.prices?`<span class="num">${money(base.prices[0].v)}<small> P/G</small></span>`:off?`<small>${base.available===false?"esgotado":"sem preço"}</small>`:`<span class="num">${money(base.price)}</span>`;
+  const anyPromo=base.promo!=null||(base.prices&&base.prices.some(x=>x.pv!=null));
+  const pr=base.prices?`<span class="num">${money(Math.min(...base.prices.map(x=>x.pv??x.v)))}<small> P/G</small></span>`:off?`<small>${base.available===false?"esgotado":"sem preço"}</small>`:base.promo!=null?`<span class="num"><small style="text-decoration:line-through;opacity:.6">${money(base.price)}</small> ${money(base.promo)}</span>`:`<span class="num">${money(base.price)}</span>`;
   const pic=base.img?`<img class="pic" src="${base.img}" alt="" loading="lazy">`:`<span class="pic ico">${I[base.icon]||I.plate}</span>`;
   return `<button class="card ${inCart?"has":""} ${off?"off":""}" style="--hue:${base.hue};animation-delay:${Math.min(i,8)*30}ms" data-a="add" data-v="${base.n}" ${off?'aria-disabled="true"':""}>
-   ${pic}<span class="area">${base.area==="bar"?I.glass+"Bar":I.flame+"Cozinha"}</span>${inCart?`<span class="badge">${inCart}</span>`:""}
+   ${pic}<span class="area">${base.area==="bar"?I.glass+"Bar":I.flame+"Cozinha"}</span>${anyPromo&&!off?`<span class="area" style="left:auto;right:8px;top:8px;background:var(--warn);color:#1a1200">PROMO</span>`:""}${inCart?`<span class="badge">${inCart}</span>`:""}
    <span class="bd"><span class="nb">Nº ${base.n}</span><span class="nm">${esc(base.name)}</span><span class="pr">${pr}${off?"":`<span class="add">${I.plus}</span>`}</span></span></button>`;
 }
 function vPedido(){
@@ -782,7 +797,7 @@ function vPedido(){
 const head=(t)=>`<div class="sh-h"><h2>${t}</h2><button class="back" data-a="close" aria-label="Fechar">${I.x}</button></div>`;
 function shSize(n){
   const b=ALL.find(x=>x.n===n);
-  return ()=>head(esc(b.name))+`<div class="sh-b">${b.img?`<img class="size-pic" src="${b.img}" alt="">`:""}<div class="eyebrow">Escolha o tamanho</div>${b.prices.map(p=>`<button class="opt" data-a="addp" data-v="${n}-${p.l[0]}"><span>${p.l}</span><span class="num">${money(p.v)}</span></button>`).join("")}</div>`;
+  return ()=>head(esc(b.name))+`<div class="sh-b">${b.img?`<img class="size-pic" src="${b.img}" alt="">`:""}<div class="eyebrow">Escolha o tamanho</div>${b.prices.map(p=>`<button class="opt" data-a="addp" data-v="${n}-${p.l[0]}"><span>${p.l}${p.pv!=null?" · PROMO":""}</span><span class="num">${p.pv!=null?`<small style="text-decoration:line-through;opacity:.6">${money(p.v)}</small> ${money(p.pv)}`:money(p.v)}</span></button>`).join("")}</div>`;
 }
 function confetti(){
   const cols=["var(--ok)","var(--fg)","var(--muted)","var(--ok)"];
