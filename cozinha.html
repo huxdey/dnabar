@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<title>DNBAR Cozinha</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style id="base"></style>
+<style>
+.kh{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.kh .title{display:flex;flex-direction:column;min-width:0}
+.kh h1{font-size:22px}
+.kh .grow{flex:1}
+.kh .clock{font-family:"Sora",sans-serif;font-size:22px;font-weight:700}
+.kh .count{font-weight:700;color:var(--muted);font-size:14px}
+.kh .me{display:flex;align-items:center;gap:8px;font-weight:700}
+.board{flex:1;overflow-y:auto;padding:14px 16px 90px;display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;align-content:start}
+.card{background:var(--surface);border:2px solid var(--line);border-radius:22px;display:flex;flex-direction:column;overflow:hidden;animation:in .35s}
+.card.new{border-color:var(--bill);box-shadow:0 0 0 4px color-mix(in srgb,var(--bill) 30%,transparent)}
+.card.late{border-color:var(--warn)}.card.very{border-color:var(--bad)}
+.card.cx{border-color:var(--bad);border-style:dashed}
+@keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.ch{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 14px 10px}
+.mesa{font-family:"Sora",sans-serif;font-weight:800;font-size:34px;line-height:1}
+.mesa small{display:block;font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:700;margin-bottom:4px}
+.timer{font-family:"Sora",sans-serif;font-weight:700;font-size:20px;padding:6px 12px;border-radius:12px;background:var(--surface-2)}
+.card.late .timer{background:var(--warn);color:#1a1200}.card.very .timer{background:var(--bad);color:#fff}
+.who{display:flex;align-items:center;gap:8px;padding:0 14px 10px;color:var(--muted);font-weight:600;font-size:14px}
+.items{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.it{display:grid;grid-template-columns:48px 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.it .q{font-family:"Sora",sans-serif;font-size:26px;font-weight:800;line-height:1}
+.it .n{font-size:19px;font-weight:700;line-height:1.25}
+.it .area{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.it.done{opacity:.45}.it.done .n::after{content:" ✓ pronto";color:var(--ok);font-size:14px}
+.it.cx .n{text-decoration:line-through;color:var(--bad)}
+.it.cx .q{color:var(--bad);text-decoration:line-through}
+.cxtag{display:inline-block;margin-top:4px;background:var(--bad);color:#fff;font-size:12px;font-weight:800;letter-spacing:.06em;padding:3px 8px;border-radius:8px;text-decoration:none}
+.note{margin-top:8px;background:var(--note-bg);color:var(--note-fg);font-weight:800;font-size:20px;text-transform:uppercase;padding:8px 10px;border-radius:10px;line-height:1.2;letter-spacing:.01em}
+.cf{padding:12px 14px;margin-top:auto}
+.cf .btn{min-height:62px;font-size:20px;font-family:"Sora",sans-serif;border-radius:18px}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);font-weight:600;padding:60px 20px;border:2px dashed var(--line);border-radius:24px}
+.empty b{display:block;font-family:"Sora",sans-serif;font-size:26px;color:var(--fg);margin-bottom:6px}
+.done-bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:center;overflow-x:auto;z-index:20}
+.done-bar .lbl{font-weight:800;font-size:12px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;flex:none}
+.done-bar button{flex:none;min-height:40px;padding:0 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:14px}
+.sound{background:var(--warn);color:#1a1200;border:0}
+@media (max-width:600px){.board{grid-template-columns:1fr}.kh .clock{display:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { sb, esc, hhmm, avatar, makeGate, rpcT, errMsg, beep, BASE_CSS, temaSwitch, aplicaTema } from "./core.js";
+document.getElementById("base").textContent = BASE_CSS;
+const app = document.getElementById("app");
+
+const G = makeGate({ key: "cozinha", roles: ["cozinha", "bar", "gerente"], title: "Cozinha", onLogin: () => { K.station = G.user.role === "bar" ? "bar" : G.user.role === "cozinha" ? "cozinha" : "tudo"; loadLive(); } });
+const K = { station: "tudo", items: [], sessions: {}, known: null, newIds: new Set(), toast: null, soundOn: false, busy: new Set() };
+let dismissed = new Set(); try { dismissed = new Set(JSON.parse(localStorage.getItem("dnbar-cx-vistos") || "[]")); } catch (e) { }
+
+async function loadLive() {
+  if (!G.user) return;
+  const ses = await sb.from("table_sessions").select("id,dining_tables(label)").eq("status", "open");
+  if (ses.error) return;
+  K.sessions = {}; ses.data.forEach(s => K.sessions[s.id] = s.dining_tables ? s.dining_tables.label : "?");
+  const ids = Object.keys(K.sessions);
+  if (!ids.length) { K.items = []; render(); return; }
+  const since = new Date(Date.now() - 12 * 3600e3).toISOString();
+  const it = await sb.from("order_items").select("id,order_id,session_id,name_snapshot,qty,note,area,status,created_at,ready_at,cancelled_at,orders(number,created_at,created_by)")
+    .in("session_id", ids).gte("created_at", since).order("created_at");
+  if (it.error) return;
+  K.items = it.data;
+  // pedidos novos: toca som
+  const orderIds = new Set(K.items.filter(i => i.status === "preparo").map(i => i.order_id));
+  if (K.known) { const fresh = [...orderIds].filter(o => !K.known.has(o) && K.items.some(i => i.order_id === o && inStation(i)));
+    if (fresh.length) { fresh.forEach(o => K.newIds.add(o)); if (K.soundOn) { beep(880); setTimeout(() => beep(1175), 220); } setTimeout(() => { fresh.forEach(o => K.newIds.delete(o)); render(); }, 8000); } }
+  K.known = orderIds;
+  render();
+}
+const inStation = i => K.station === "tudo" || i.area === K.station;
+let t; const schedule = () => { clearTimeout(t); t = setTimeout(loadLive, 250); };
+
+function cards() {
+  const byOrder = {};
+  K.items.filter(inStation).forEach(i => { (byOrder[i.order_id] = byOrder[i.order_id] || []).push(i); });
+  const active = [], cxOnly = [];
+  Object.entries(byOrder).forEach(([oid, its]) => {
+    const pending = its.some(i => i.status === "preparo");
+    const recentCx = its.filter(i => i.status === "cancelado" && i.cancelled_at && Date.now() - new Date(i.cancelled_at) < 20 * 60e3 && !dismissed.has(i.id));
+    if (pending) active.push({ oid, its, o: its[0].orders, sid: its[0].session_id });
+    else if (recentCx.length) cxOnly.push({ oid, its: recentCx, o: its[0].orders, sid: its[0].session_id, cxOnly: true });
+  });
+  active.sort((a, b) => new Date(a.o.created_at) - new Date(b.o.created_at));
+  return [...cxOnly, ...active];
+}
+function doneRecent() {
+  const byOrder = {};
+  K.items.filter(i => inStation(i) && i.status === "pronto" && i.ready_at).forEach(i => { (byOrder[i.order_id] = byOrder[i.order_id] || []).push(i); });
+  return Object.values(byOrder).filter(its => !K.items.some(i => i.order_id === its[0].order_id && inStation(i) && i.status === "preparo"))
+    .sort((a, b) => new Date(b[0].ready_at) - new Date(a[0].ready_at)).slice(0, 8);
+}
+function cardHtml(c) {
+  const mins = Math.floor((Date.now() - new Date(c.o.created_at)) / 60000);
+  const cls = c.cxOnly ? "cx" : mins >= 20 ? "very" : mins >= 12 ? "late" : "";
+  const w = (G.allStaff || []).find(p => p.id === c.o.created_by);
+  const pend = c.its.filter(i => i.status === "preparo").map(i => i.id);
+  return `<article class="card ${cls} ${K.newIds.has(c.oid) ? "new" : ""}">
+    <div class="ch"><div class="mesa"><small>MESA · PEDIDO #${c.o.number}</small>${esc(K.sessions[c.sid] || "?")}</div><div class="timer num">${c.cxOnly ? "!" : mins + " min"}</div></div>
+    <div class="who">${avatar(w, 26)}${esc(w ? w.name : "")} · ${hhmm(c.o.created_at)}</div>
+    <div class="items">${c.its.map(i => {
+      const cx = i.status === "cancelado", done = i.status === "pronto";
+      return `<button class="it ${cx ? "cx" : ""} ${done ? "done" : ""}" ${cx || done ? "disabled" : `data-a="item" data-v="${i.id}"`} aria-label="Marcar ${esc(i.name_snapshot)} pronto">
+        <span class="q num">${i.qty}</span><span><span class="n">${esc(i.name_snapshot)}</span>${K.station === "tudo" ? `<span class="area">${i.area}</span>` : ""}
+        ${cx ? `<br><span class="cxtag">CANCELADO · NÃO FAZER</span>` : ""}${i.note && !cx ? `<div class="note">${esc(i.note)}</div>` : ""}</span></button>`;
+    }).join("")}</div>
+    <div class="cf">${c.cxOnly ? `<button class="btn bad block" data-a="seen" data-v="${c.its.map(i => i.id).join(",")}">Visto, não vou fazer</button>`
+      : `<button class="btn ok block" data-a="ready" data-v="${pend.join(",")}" ${K.busy.has(c.oid) ? "disabled" : ""}>PRONTO</button>`}</div></article>`;
+}
+
+function render() {
+  if (!G.ready) { app.innerHTML = `<div class="gate"><div class="muted">Carregando...</div></div>`; return; }
+  if (!G.user) { app.innerHTML = G.view(); return; }
+  const cs = cards(), dr = doneRecent();
+  const n = cs.filter(c => !c.cxOnly).length;
+  app.innerHTML = `<header class="kh">
+    <div class="title"><div class="eyebrow">${esc(G.bar.name)}</div><h1>${K.station === "bar" ? "Bar" : K.station === "cozinha" ? "Cozinha" : "Cozinha e bar"}</h1></div>
+    <div class="chips">${[["cozinha", "Cozinha"], ["bar", "Bar"], ["tudo", "Tudo"]].map(([k, l]) => `<button class="chip" data-a="st" data-v="${k}" aria-pressed="${K.station === k}">${l}</button>`).join("")}</div>
+    <span class="count">${n} ${n === 1 ? "pedido na fila" : "pedidos na fila"}</span>
+    <span class="grow"></span>
+    ${K.soundOn ? "" : `<button class="btn sm sound" data-a="sound">Ativar som</button>`}
+    <span class="clock num">${hhmm(Date.now())}</span>${temaSwitch()}
+    <span class="me">${avatar(G.user, 34)}${esc(G.user.name)}</span><button class="btn sm" data-a="logout">Sair</button>
+  </header>
+  <main class="board">${cs.length ? cs.map(cardHtml).join("") : `<div class="empty"><b>Tudo em dia</b>Quando um garçom lançar um pedido, ele aparece aqui na hora.</div>`}</main>
+  ${dr.length ? `<div class="done-bar"><span class="lbl">Prontos</span>${dr.map(its => `<button data-a="undo" data-v="${its.map(i => i.id).join(",")}" title="Tocar para desfazer">Mesa ${esc(K.sessions[its[0].session_id] || "?")} · #${its[0].orders.number} · ${hhmm(its[0].ready_at)} ↺</button>`).join("")}</div>` : ""}
+  ${K.toast ? `<div class="toast ${K.toast.bad ? "bad" : ""}">${esc(K.toast.t)}${K.toast.s ? `<small>${esc(K.toast.s)}</small>` : ""}</div>` : ""}
+  ${!navigator.onLine ? `<div class="net">Sem conexão. Os pedidos voltam a aparecer quando a internet voltar.</div>` : ""}`;
+}
+function toast(t, s, bad) { K.toast = { t, s, bad }; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { K.toast = null; render(); }, 3000); }
+
+app.addEventListener("input", e => { if (G.input(e.target.dataset.in, e.target.value)) return; });
+app.addEventListener("click", async e => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v;
+  if (await G.click(a, v, render)) return;
+  switch (a) {
+    case "st": K.station = v; K.known = null; await loadLive(); break;
+    case "sound": K.soundOn = true; beep(660); render(); break;
+    case "logout": G.logout(); render(); break;
+    case "item": case "ready": {
+      const ids = v.split(",").filter(Boolean); if (!ids.length) return;
+      const oid = K.items.find(i => i.id === ids[0])?.order_id; K.busy.add(oid); render();
+      try { await rpcT(G, "set_items_ready", { p_item_ids: ids }); await loadLive(); }
+      catch (err) { toast("Não deu certo", errMsg(err), true); }
+      K.busy.delete(oid); render(); break;
+    }
+    case "undo": try { await rpcT(G, "undo_ready", { p_item_ids: v.split(",") }); await loadLive(); toast("Voltou para a fila", ""); } catch (err) { toast("Não deu certo", errMsg(err), true); } break;
+    case "seen": v.split(",").forEach(id => dismissed.add(id)); try { localStorage.setItem("dnbar-cx-vistos", JSON.stringify([...dismissed].slice(-300))); } catch (e) { } render(); break;
+  }
+});
+document.addEventListener("keydown", e => { G.key(e, render); });
+document.addEventListener("gesturestart", e => e.preventDefault());
+window.addEventListener("online", () => { render(); loadLive(); }); window.addEventListener("offline", render);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadLive(); });
+setInterval(() => { if (G.user) render(); }, 30000);  // atualiza cronômetros
+setInterval(() => { if (G.user) loadLive(); }, 15000); // reserva caso o tempo real caia
+
+render();
+G.load().then(() => {
+  if (G.user) K.station = G.user.role === "bar" ? "bar" : G.user.role === "cozinha" ? "cozinha" : "tudo";
+  render(); loadLive();
+  if (G.auth) sb.channel("cozinha")
+    .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, schedule)
+    .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, schedule)
+    .subscribe();
+}).catch(err => { app.innerHTML = `<div class="gate"><div class="err">${esc(errMsg(err))}</div><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+</script>
+</body>
+</html>

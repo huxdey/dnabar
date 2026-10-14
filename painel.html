@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<title>DNBAR Dono</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style id="base"></style>
+<style>
+.ph{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ph .grow{flex:1;min-width:0}.ph h1{font-size:22px}
+.tabs{display:flex;gap:6px;padding:10px 16px 0}
+.wrap{flex:1;overflow-y:auto;padding:12px 16px 40px}
+.inner{max-width:1100px;margin:0 auto;display:grid;gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px}
+.kpi b{display:block;font-family:"Sora",sans-serif;font-size:24px;font-weight:800;margin-top:4px}
+.kpi span{font-size:13px;color:var(--muted);font-weight:600}
+.kpi.hero{background:var(--accent);color:var(--on-accent);border:0;grid-column:span 2}
+.kpi.hero span{color:inherit;opacity:.75}.kpi.hero b{font-size:34px}
+.delta{font-size:13px;font-weight:800;margin-top:4px;display:block}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px;display:grid;gap:10px}
+.card h3{font-size:15px}
+.card .sub{font-size:13px;color:var(--muted);font-weight:600}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:110px 1fr 90px;gap:10px;align-items:center;font-size:14px;font-weight:600}
+.bar .track{height:12px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.bar .fill{height:100%;border-radius:6px;background:var(--fg)}
+.bar .v{text-align:right}
+.hours{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:6px}
+.hours div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.hours i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--fg);min-height:2px}
+.hours small{font-size:10px;color:var(--muted);font-weight:700}
+.rank{display:grid;gap:6px}
+.rank .r{display:grid;grid-template-columns:26px 1fr auto auto;gap:10px;align-items:center;font-size:14px;font-weight:600}
+.rank .p{color:var(--muted);font-weight:800;text-align:center}
+.rank .q{color:var(--muted)}
+.log{display:grid;gap:8px;font-size:14px}
+.log .r{display:grid;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.log small{color:var(--muted);font-weight:600}
+.empty{color:var(--muted);font-weight:600;font-size:14px}
+.prod{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.prod .n{font-weight:800;color:var(--muted);text-align:center}
+.prod .prices{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.prod input{width:96px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);padding:0 10px;font:inherit;font-weight:700}
+.prod label{font-size:12px;color:var(--muted);font-weight:700;display:grid;gap:3px}
+.prod .acts{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.sold-out{color:var(--bad);font-weight:800;font-size:12px}
+.note-day{font-size:12px;color:var(--muted);font-weight:600}
+@media (max-width:560px){.kpi.hero{grid-column:1/-1}.bar{grid-template-columns:84px 1fr 80px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+import { SUPABASE_URL, SUPABASE_KEY, esc, hhmm, money, errMsg, isNetErr, BASE_CSS, temaSwitch, aplicaTema, parseMoney, centsToInput } from "./core.js";
+document.getElementById("base").textContent = BASE_CSS;
+// sessão do dono separada da sessão do aparelho do bar
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "dnbar-dono" } });
+const app = document.getElementById("app");
+const P = { auth: null, role: null, bar: null, tab: "resumo", period: "hoje", rep: null, loading: false, email: "", pw: "", err: "", busy: false, prods: [], cats: [], edits: {}, toast: null };
+const MLABEL = { pix: "Pix", debito: "Débito", credito: "Crédito", dinheiro: "Dinheiro", outro: "Outro" };
+
+// "dia do bar" vai das 6h às 6h (a noite de sexta conta como sexta)
+function range(p) {
+  const now = new Date(); const d = new Date(now); d.setHours(6, 0, 0, 0); if (now < d) d.setDate(d.getDate() - 1);
+  const day = 864e5;
+  if (p === "hoje") return [d, new Date(d.getTime() + day)];
+  if (p === "ontem") return [new Date(d.getTime() - day), d];
+  if (p === "7d") return [new Date(d.getTime() - 6 * day), new Date(d.getTime() + day)];
+  if (p === "30d") return [new Date(d.getTime() - 29 * day), new Date(d.getTime() + day)];
+  if (p === "mes") { const m = new Date(d); m.setDate(1); return [m, new Date(d.getTime() + day)]; }
+}
+const PERIODS = [["hoje", "Hoje"], ["ontem", "Ontem"], ["7d", "7 dias"], ["30d", "30 dias"], ["mes", "Este mês"]];
+const PREV = { hoje: "ontem", ontem: "anteontem", "7d": "7 dias anteriores", "30d": "30 dias anteriores", mes: "período anterior" };
+
+async function boot() {
+  const { data } = await sb.auth.getSession(); P.auth = data.session;
+  if (P.auth) {
+    const w = await sb.rpc("whoami"); P.role = w.data && w.data.role;
+    if (P.role === "owner") { const e = await sb.from("establishments").select("name,logo_url").single(); P.bar = e.data; await loadReport(); }
+  }
+  render();
+}
+async function loadReport() {
+  P.loading = true; render();
+  const [f, t] = range(P.period);
+  const { data, error } = await sb.rpc("owner_report", { p_from: f.toISOString(), p_to: t.toISOString() });
+  P.loading = false;
+  if (error) { toast("Não foi possível carregar", errMsg(error), true); return; }
+  P.rep = data; render();
+}
+async function loadMenu() {
+  const [c, p] = await Promise.all([sb.from("categories").select("id,name,sort").order("sort"),
+    sb.from("products").select("id,category_id,number,name,price_cents,sizes,available,active").eq("active", true).order("sort")]);
+  P.cats = c.data || []; P.prods = p.data || []; render();
+}
+
+const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
+function vLogin() {
+  if (P.auth && P.role !== "owner") return `<div class="gate narrow"><h1 class="big">Conta sem acesso</h1><p class="muted">Esta conta é de aparelho do salão. O painel do dono usa o e-mail e a senha do dono.</p><button class="btn" data-a="logout">Entrar com outra conta</button></div>`;
+  return `<div class="gate narrow"><div class="gate-top"><div class="eyebrow">DNBAR · Dono</div>${temaSwitch()}</div>
+    <h1 class="big">Painel do<br>dono</h1><p class="muted">Faturamento, mais vendidos, equipe e cardápio. Entre com o seu e-mail e senha.</p>
+    <label class="field">E-mail<input type="email" data-in="email" autocomplete="username" value="${esc(P.email)}"></label>
+    <label class="field">Senha<input type="password" data-in="pw" autocomplete="current-password" value="${esc(P.pw)}"></label>
+    <div class="err">${esc(P.err)}</div><button class="btn primary block" data-a="login" ${P.busy ? "disabled" : ""}>${P.busy ? "Entrando..." : "Entrar"}</button>
+    <div class="switch">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha</a> · <a href="caixa.html">Caixa</a></div></div>`;
+}
+function vResumo() {
+  const r = P.rep;
+  const chips = `<div class="chips">${PERIODS.map(([k, l]) => `<button class="chip" data-a="period" data-v="${k}" aria-pressed="${P.period === k}">${l}</button>`).join("")}</div>
+    <div class="note-day">O dia do bar vai das 6h às 6h: a madrugada conta no dia anterior.</div>`;
+  if (!r) return chips + `<div class="empty">${P.loading ? "Carregando..." : "Sem dados."}</div>`;
+  const d = pct(r.revenue, r.revenue_prev);
+  const ticket = r.tables_closed ? Math.round(r.table_revenue / r.tables_closed) : 0;
+  const perPerson = r.people ? Math.round(r.table_revenue / r.people) : 0;
+  const methods = Object.entries(r.by_method || {}).sort((a, b) => b[1] - a[1]); const mMax = Math.max(1, ...methods.map(m => m[1]));
+  const hrs = []; for (let h = 0; h < 24; h++) hrs.push([h, (r.by_hour || {})[h] || 0]);
+  const used = hrs.filter(x => x[1] > 0); const hMin = used.length ? Math.min(...used.map(x => x[0])) : 17, hMax = used.length ? Math.max(...used.map(x => x[0])) : 23;
+  const shown = hrs.filter(x => x[0] >= Math.min(hMin, 17) && x[0] <= Math.max(hMax, 23)); const hTop = Math.max(1, ...shown.map(x => x[1]));
+  const peak = used.length ? used.reduce((a, b) => b[1] > a[1] ? b : a) : null;
+  const sMax = Math.max(1, ...(r.by_staff || []).map(s => s.total));
+  return chips + `
+  <div class="kpis">
+    <div class="kpi hero"><span>Faturamento</span><b class="num">${money(r.revenue)}</b>
+      <span class="delta">${d == null ? "Sem base de comparação" : (d >= 0 ? "▲ " : "▼ ") + Math.abs(d) + "% vs " + PREV[P.period] + " (" + money(r.revenue_prev) + ")"}</span></div>
+    <div class="kpi"><span>Ticket médio por mesa</span><b class="num">${money(ticket)}</b></div>
+    <div class="kpi"><span>Gasto por pessoa</span><b class="num">${money(perPerson)}</b></div>
+    <div class="kpi"><span>Mesas atendidas</span><b class="num">${r.tables_closed}</b><span>${r.people} pessoas</span></div>
+    <div class="kpi"><span>Itens vendidos</span><b class="num">${r.items_sold}</b></div>
+    <div class="kpi"><span>Venda balcão</span><b class="num">${money(r.counter_revenue)}</b><span>${r.counter_count} vendas</span></div>
+    <div class="kpi"><span>Mesas abertas agora</span><b class="num">${r.open_tables}</b></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Mais vendidos</h3>${r.top.length ? `<div class="rank">${r.top.map((p, i) => `<div class="r"><span class="p">${i + 1}</span><span>${esc(p.name)}</span><span class="q num">${p.qty}x</span><b class="num">${money(p.total)}</b></div>`).join("")}</div>` : `<div class="empty">Nenhuma venda no período.</div>`}</div>
+    <div class="card"><h3>Menos vendidos</h3>${r.bottom.length ? `<div class="rank">${r.bottom.map((p, i) => `<div class="r"><span class="p">${i + 1}</span><span>${esc(p.name)}</span><span class="q num">${p.qty}x</span><b class="num">${money(p.total)}</b></div>`).join("")}</div>` : `<div class="empty">Nenhuma venda no período.</div>`}
+      ${r.not_sold.length ? `<div class="sub">Não venderam nada (${r.not_sold.length}): ${esc(r.not_sold.slice(0, 12).join(", "))}${r.not_sold.length > 12 ? "..." : ""}</div>` : ""}</div>
+    <div class="card"><h3>Formas de pagamento</h3>${methods.length ? `<div class="bars">${methods.map(([k, v]) => `<div class="bar"><span>${MLABEL[k] || k}</span><span class="track"><span class="fill" style="display:block;width:${Math.round(v / mMax * 100)}%"></span></span><span class="v num">${money(v)}</span></div>`).join("")}</div>` : `<div class="empty">Nenhum pagamento no período.</div>`}</div>
+    <div class="card"><h3>Horário de movimento</h3><div class="sub">${peak ? `Pico às ${peak[0]}h, com ${money(peak[1])} em pedidos` : "Sem pedidos no período"}</div>
+      <div class="hours" role="img" aria-label="Vendas por hora">${shown.map(([h, v]) => `<div title="${h}h: ${money(v)}"><i style="height:${Math.round(v / hTop * 100)}%"></i><small>${h}</small></div>`).join("")}</div></div>
+    <div class="card"><h3>Equipe</h3><div class="sub">Valor lançado por cada pessoa</div>${(r.by_staff || []).length ? `<div class="bars">${r.by_staff.map(s => `<div class="bar"><span>${esc(s.name)}</span><span class="track"><span class="fill" style="display:block;width:${Math.round(s.total / sMax * 100)}%"></span></span><span class="v num">${money(s.total)}</span></div>`).join("")}</div>` : `<div class="empty">Sem lançamentos.</div>`}</div>
+    <div class="card"><h3>Cancelamentos</h3>${r.cancellations.length ? `<div class="log">${r.cancellations.map(c => `<div class="r"><span>${c.qty} ${esc(c.item)} · <b class="num">${money(c.value)}</b></span><small>${hhmm(c.at)} · autorizado por ${esc(c.by || "?")} · ${esc(c.reason || "")}</small></div>`).join("")}</div>` : `<div class="empty">Nenhum cancelamento.</div>`}</div>
+    <div class="card"><h3>Descontos</h3>${r.discounts.length ? `<div class="log">${r.discounts.map(c => `<div class="r"><span><b class="num">${money(c.value)}</b> · pedido por ${esc(c.asked_by || "?")}</span><small>${hhmm(c.at)} · autorizado por ${esc(c.by || "?")} · ${esc(c.reason || "")}</small></div>`).join("")}</div>` : `<div class="empty">Nenhum desconto.</div>`}</div>
+    <div class="card"><h3>Caixa</h3>${r.cash.length ? `<div class="log">${r.cash.map(c => `<div class="r"><span>${c.status === "open" ? "Aberto agora" : (c.difference === 0 ? "Bateu certinho" : (c.difference > 0 ? "Sobrou " : "Faltou ") + money(Math.abs(c.difference)))}</span><small>${new Date(c.opened_at).toLocaleDateString("pt-BR")} · aberto ${hhmm(c.opened_at)} por ${esc(c.opened_by)}${c.closed_at ? ` · fechado ${hhmm(c.closed_at)} por ${esc(c.closed_by)}` : ""}</small></div>`).join("")}</div>` : `<div class="empty">Nenhum caixa no período.</div>`}</div>
+  </div>`;
+}
+function vCardapio() {
+  if (!P.prods.length) return `<div class="empty">Carregando cardápio...</div>`;
+  return `<div class="card"><h3>Preços e disponibilidade</h3><div class="sub">Mudou aqui, muda na hora em todos os celulares do salão. Fotos, novos produtos e logo chegam numa próxima versão.</div></div>
+  ${P.cats.map(c => { const ps = P.prods.filter(p => p.category_id === c.id); if (!ps.length) return "";
+    return `<div class="card"><h3>${esc(c.name)}</h3>${ps.map(p => { const e = P.edits[p.id] || {};
+      const prices = p.sizes && p.sizes.length ? p.sizes.map((s, i) => `<label>${esc(s.l)}<input inputmode="decimal" data-in="price" data-p="${p.id}" data-i="${i}" value="${esc(e["s" + i] ?? centsToInput(s.v))}"></label>`).join("")
+        : `<label>Preço<input inputmode="decimal" data-in="price" data-p="${p.id}" data-i="-1" value="${esc(e.price ?? (p.price_cents == null ? "" : centsToInput(p.price_cents)))}" placeholder="sem preço"></label>`;
+      return `<div class="prod"><span class="n">${p.number}</span><span><b>${esc(p.name)}</b> ${p.available ? "" : `<span class="sold-out">ESGOTADO</span>`}<div class="prices">${prices}</div></span>
+        <span class="acts"><button class="btn sm ${e.dirty ? "primary" : ""}" data-a="save" data-v="${p.id}" ${e.dirty ? "" : "disabled"}>Salvar</button>
+        <button class="btn sm" data-a="avail" data-v="${p.id}">${p.available ? "Marcar esgotado" : "Voltou a ter"}</button></span></div>`; }).join("")}</div>`; }).join("")}`;
+}
+function render() {
+  const f = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.in;
+  const fp = f && document.activeElement.dataset.p, fi = f && document.activeElement.dataset.i;
+  if (!P.auth || P.role !== "owner") app.innerHTML = vLogin();
+  else app.innerHTML = `<header class="ph"><div class="grow"><div class="eyebrow">${esc(P.bar ? P.bar.name : "")}</div><h1>Painel do dono</h1></div>${temaSwitch()}<button class="btn sm" data-a="logout">Sair</button></header>
+    <div class="tabs chips"><button class="chip" data-a="tab" data-v="resumo" aria-pressed="${P.tab === "resumo"}">Resumo</button><button class="chip" data-a="tab" data-v="cardapio" aria-pressed="${P.tab === "cardapio"}">Cardápio</button><button class="chip" data-a="reload">Atualizar</button></div>
+    <main class="wrap"><div class="inner">${P.tab === "resumo" ? vResumo() : vCardapio()}</div></main>`;
+  if (P.toast) app.insertAdjacentHTML("beforeend", `<div class="toast ${P.toast.bad ? "bad" : ""}">${esc(P.toast.t)}${P.toast.s ? `<small>${esc(P.toast.s)}</small>` : ""}</div>`);
+  if (f) { const el = app.querySelector(fp ? `[data-in="${f}"][data-p="${fp}"][data-i="${fi}"]` : `[data-in="${f}"]`); if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
+}
+function toast(t, s, bad) { P.toast = { t, s, bad }; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { P.toast = null; render(); }, 3000); }
+
+app.addEventListener("input", e => {
+  const d = e.target.dataset;
+  if (d.in === "email" || d.in === "pw") { P[d.in] = e.target.value; return; }
+  if (d.in === "price") { const ed = P.edits[d.p] = P.edits[d.p] || {}; if (d.i === "-1") ed.price = e.target.value; else ed["s" + d.i] = e.target.value; const was = ed.dirty; ed.dirty = true; if (!was) render(); }
+});
+app.addEventListener("click", async e => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v;
+  switch (a) {
+    case "tema": aplicaTema(v); break;
+    case "login": {
+      P.busy = true; P.err = ""; render();
+      const { error } = await sb.auth.signInWithPassword({ email: P.email.trim(), password: P.pw });
+      P.busy = false; if (error) { P.err = isNetErr(error) ? "Sem conexão com a internet." : "E-mail ou senha incorretos."; render(); return; }
+      P.pw = ""; await boot(); return;
+    }
+    case "logout": await sb.auth.signOut(); P.auth = null; P.role = null; P.rep = null; break;
+    case "tab": P.tab = v; if (v === "cardapio") { render(); await loadMenu(); return; } break;
+    case "period": P.period = v; await loadReport(); return;
+    case "reload": if (P.tab === "cardapio") await loadMenu(); else await loadReport(); return;
+    case "save": case "avail": {
+      const p = P.prods.find(x => x.id === v), ed = P.edits[v] || {};
+      let price = null, sizes = null, avail = null;
+      if (a === "avail") avail = !p.available;
+      if (p.sizes && p.sizes.length) { sizes = p.sizes.map((s, i) => ({ l: s.l, v: ed["s" + i] != null ? parseMoney(ed["s" + i]) : s.v })); if (sizes.some(s => s.v == null || s.v < 0)) return toast("Preço inválido", "", true); }
+      else { price = ed.price != null ? (ed.price.trim() === "" ? null : parseMoney(ed.price)) : p.price_cents; if (ed.price != null && ed.price.trim() !== "" && price == null) return toast("Preço inválido", "", true); }
+      const { error } = await sb.rpc("owner_update_product", { p_product_id: v, p_price_cents: price, p_sizes: sizes, p_available: avail });
+      if (error) return toast("Não deu certo", errMsg(error), true);
+      delete P.edits[v]; await loadMenu(); toast(a === "avail" ? (avail ? "Produto disponível de novo" : "Marcado como esgotado") : "Preço atualizado", p.name); return;
+    }
+  }
+  render();
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && (!P.auth || P.role !== "owner")) app.querySelector('[data-a="login"]')?.click(); });
+document.addEventListener("gesturestart", e => e.preventDefault());
+render(); boot().catch(err => toast("Erro ao carregar", errMsg(err), true));
+</script>
+</body>
+</html>

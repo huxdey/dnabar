@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<title>DNBAR Caixa</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style id="base"></style>
+<style>
+.cx{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0}
+.side{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-h{padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.side-h .grow{flex:1;min-width:0}.side-h h1{font-size:20px}
+.cashbox{margin:12px 16px 0;padding:14px;border-radius:18px;background:var(--surface);border:1px solid var(--line);display:grid;gap:10px}
+.cashbox.closed{border-color:var(--warn)}
+.cashbox .row{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.cashbox .acts{display:flex;gap:6px;flex-wrap:wrap}
+.list{flex:1;overflow-y:auto;padding:12px 16px 20px;display:flex;flex-direction:column;gap:8px}
+.list h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:inherit;margin:8px 0 2px}
+.trow{display:grid;grid-template-columns:58px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:16px;background:var(--surface);border:1px solid var(--line);text-align:left;width:100%}
+.trow[aria-current="true"]{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.trow .n{font-family:"Sora",sans-serif;font-weight:800;font-size:22px;text-align:center;border-radius:12px;background:var(--surface-2);padding:8px 0}
+.trow.conta .n{background:var(--bill);color:#fff}
+.trow b{display:block;font-size:15px}.trow small{color:var(--muted);font-weight:600;font-size:13px}
+.trow .v{font-weight:800}
+.tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:7px;background:var(--bill);color:#fff;margin-left:6px;text-transform:uppercase}
+.main{overflow-y:auto;min-height:0;padding:18px 22px 40px}
+.main .placeholder{height:100%;display:grid;place-items:center;text-align:center;color:var(--muted);font-weight:600}
+.bh{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.bh .big{font-family:"Sora",sans-serif;font-size:40px;font-weight:800;line-height:1}
+.bh .grow{flex:1}
+.cols{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.box-h{padding:12px 14px;font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.ln{display:grid;grid-template-columns:34px 1fr auto 40px;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ln .q{font-weight:800;text-align:center;background:var(--surface-2);border-radius:9px;padding:4px 0}
+.ln small{display:block;color:var(--muted);font-weight:600}
+.ln.gone{opacity:.55}.ln.gone .nm{text-decoration:line-through}
+.ln .del{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);color:var(--bad);font-size:18px;font-weight:800}
+.tot{padding:12px 14px;display:grid;gap:8px}
+.tot .r{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:600}
+.tot .r.T{font-family:"Sora",sans-serif;font-size:22px;font-weight:800;border-top:1px solid var(--line);padding-top:10px}
+.tot .r.rem{font-family:"Sora",sans-serif;font-size:28px;font-weight:800;color:var(--ok)}
+.tgl{width:52px;height:30px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);position:relative}
+.tgl::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--muted);transition:.15s}
+.tgl[aria-pressed="true"]{background:var(--ok);border-color:transparent}.tgl[aria-pressed="true"]::after{left:25px;background:#fff}
+.linkb{color:var(--bill);font-weight:700;font-size:14px}
+.pay{padding:14px;display:grid;gap:12px}
+.methods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.methods button{min-height:56px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);font-weight:800}
+.methods button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:transparent}
+.split{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-weight:600;color:var(--muted);font-size:14px}
+.split button{min-width:44px;min-height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-weight:800;color:var(--fg)}
+.change{font-family:"Sora",sans-serif;font-size:20px;font-weight:800;color:var(--ok)}
+.paid-l{padding:4px 14px 12px;font-size:14px;color:var(--muted);font-weight:600;display:grid;gap:4px}
+.mobile-back{display:none}
+.prodgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:42vh;overflow-y:auto}
+.prod{padding:10px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-align:left;display:grid;gap:4px;font-size:14px;font-weight:700}
+.prod small{color:var(--muted);font-weight:700}
+.modal.wide{max-width:760px}
+.cartl{display:grid;gap:6px}
+.cartl .r{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:600}
+.step{display:flex;align-items:center;gap:6px}.step button{width:32px;height:32px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-weight:800}
+.mgrs{display:flex;gap:8px;flex-wrap:wrap}
+.mgrs button{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:700}
+.mgrs button[aria-pressed="true"]{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.sumt{display:grid;gap:6px;font-weight:600}.sumt .r{display:flex;justify-content:space-between}.sumt .r.T{font-weight:800;font-size:18px;border-top:1px solid var(--line);padding-top:8px}
+.diff{font-family:"Sora",sans-serif;font-size:22px;font-weight:800}
+@media (max-width:900px){
+  .cx{grid-template-columns:1fr}.side{border:0}
+  .cx.sel .side{display:none}.cx:not(.sel) .main{display:none}
+  .mobile-back{display:inline-grid}.cols{grid-template-columns:1fr}.main{padding:14px 16px 40px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { sb, esc, hhmm, money, avatar, makeGate, rpcT, errMsg, BASE_CSS, temaSwitch, uuid, parseMoney, centsToInput } from "./core.js";
+document.getElementById("base").textContent = BASE_CSS;
+const app = document.getElementById("app");
+const G = makeGate({ key: "caixa", roles: ["caixa", "gerente"], title: "Caixa", onLogin: () => loadAll() });
+const C = { sessions: [], items: [], pays: [], cash: null, sel: null, method: "pix", amount: "", received: "", modal: null, toast: null, busy: false, menu: [] };
+const METHODS = [["pix", "Pix"], ["debito", "Débito"], ["credito", "Crédito"], ["dinheiro", "Dinheiro"]];
+const MLABEL = { pix: "Pix", debito: "Débito", credito: "Crédito", dinheiro: "Dinheiro", outro: "Outro" };
+
+async function loadAll() { await Promise.all([loadLive(), loadCash(), loadMenu()]); render(); }
+async function loadMenu() {
+  const [ca, pr] = await Promise.all([sb.from("categories").select("id,name,sort").eq("active", true).order("sort"),
+    sb.from("products").select("id,category_id,number,name,price_cents,sizes,available").eq("active", true).order("sort")]);
+  if (ca.error || pr.error) return;
+  C.menu = [];
+  pr.data.forEach(p => { if (!p.available) return;
+    if (p.sizes && p.sizes.length) p.sizes.forEach(s => C.menu.push({ key: p.id + "|" + s.l, id: p.id, size: s.l, name: p.name + " (" + s.l.toLowerCase() + ")", n: p.number, price: s.v }));
+    else if (p.price_cents != null) C.menu.push({ key: p.id + "|", id: p.id, size: null, name: p.name, n: p.number, price: p.price_cents }); });
+}
+async function loadLive() {
+  if (!G.user) return;
+  const ses = await sb.from("table_sessions").select("id,people,flag,flag_at,opened_at,waiter_id,service_fee_on,discount_cents,dining_tables(label,sort)").eq("status", "open");
+  if (ses.error) return;
+  const ids = ses.data.map(s => s.id);
+  let items = [], pays = [];
+  if (ids.length) {
+    const [it, pa] = await Promise.all([
+      sb.from("order_items").select("id,session_id,name_snapshot,qty,unit_price_cents,status,note,cancel_reason").in("session_id", ids).order("created_at"),
+      sb.from("payments").select("id,session_id,method,amount_cents,created_at,created_by").in("session_id", ids).order("created_at")]);
+    if (it.error || pa.error) return;
+    items = it.data; pays = pa.data;
+  }
+  C.sessions = ses.data; C.items = items; C.pays = pays;
+  if (C.sel && !C.sessions.some(s => s.id === C.sel)) C.sel = null;
+}
+async function loadCash() { if (!G.user) return; try { C.cash = await rpcT(G, "cash_status", {}); } catch (e) { } }
+let t; const schedule = () => { clearTimeout(t); t = setTimeout(async () => { await Promise.all([loadLive(), loadCash()]); render(); }, 250); };
+
+function bill(s) {
+  const its = C.items.filter(i => i.session_id === s.id);
+  const sub = its.filter(i => i.status !== "cancelado").reduce((a, i) => a + i.qty * i.unit_price_cents, 0);
+  const pct = Number(G.bar.service_fee_pct);
+  const fee = s.service_fee_on ? Math.round(sub * pct / 100) : 0;
+  const total = Math.max(0, sub + fee - s.discount_cents);
+  const paid = C.pays.filter(p => p.session_id === s.id).reduce((a, p) => a + p.amount_cents, 0);
+  return { its, sub, fee, pct, total, paid, rem: Math.max(0, total - paid) };
+}
+const staffName = id => ((G.allStaff || []).find(p => p.id === id) || {}).name || "";
+const label = s => s.dining_tables ? s.dining_tables.label : "?";
+
+function vSide() {
+  const cash = C.cash;
+  const sorted = [...C.sessions].sort((a, b) => ((b.flag ? 1 : 0) - (a.flag ? 1 : 0)) || ((a.dining_tables?.sort || 0) - (b.dining_tables?.sort || 0)));
+  const ask = sorted.filter(s => s.flag), rest = sorted.filter(s => !s.flag);
+  const row = s => { const b = bill(s); return `<button class="trow ${s.flag ? "conta" : ""}" data-a="sel" data-v="${s.id}" aria-current="${C.sel === s.id}">
+    <span class="n">${esc(label(s))}</span><span><b>${esc(staffName(s.waiter_id))}${s.flag ? `<span class="tag">${s.flag === "chamou" ? "Chamou" : "Conta"}</span>` : ""}</b><small>${s.people} pessoas · desde ${hhmm(s.opened_at)}</small></span>
+    <span class="v num">${money(b.rem)}</span></button>`; };
+  return `<aside class="side">
+    <div class="side-h"><div class="grow"><div class="eyebrow">${esc(G.bar.name)}</div><h1>Caixa</h1></div>${temaSwitch()}${avatar(G.user, 34)}<button class="btn sm" data-a="logout">Sair</button></div>
+    ${cash && cash.open ? `<div class="cashbox"><div class="row"><span>Caixa aberto por ${esc(cash.opened_by)} às ${hhmm(cash.opened_at)}</span></div>
+        <div class="row"><span class="muted">Dinheiro na gaveta</span><b class="num">${money(cash.expected_cash)}</b></div>
+        <div class="row"><span class="muted">Recebido hoje</span><b class="num">${money(cash.total)}</b></div>
+        <div class="acts"><button class="btn sm" data-a="m-move" data-v="sangria">Sangria</button><button class="btn sm" data-a="m-move" data-v="suprimento">Suprimento</button><button class="btn sm" data-a="m-close">Fechar caixa</button></div></div>`
+      : `<div class="cashbox closed"><b>Caixa fechado</b><span class="muted">Abra o caixa para receber pagamentos.</span>
+        <label class="field">Troco inicial (R$)<input inputmode="decimal" data-in="opening" placeholder="0,00" value="${esc(C.opening || "")}"></label>
+        <button class="btn primary" data-a="open-cash" ${C.busy ? "disabled" : ""}>Abrir caixa</button></div>`}
+    <div class="list">
+      <button class="btn primary block" data-a="m-counter">+ Venda balcão</button>
+      ${ask.length ? `<h3>Pediram a conta</h3>${ask.map(row).join("")}` : ""}
+      <h3>Mesas abertas (${rest.length})</h3>${rest.map(row).join("") || `<div class="muted">Nenhuma mesa aberta.</div>`}
+      <div class="switch" style="margin-top:12px">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha</a> · <a href="painel.html">Dono</a></div>
+    </div></aside>`;
+}
+
+function vMain() {
+  const s = C.sessions.find(x => x.id === C.sel);
+  if (!s) return `<section class="main"><div class="placeholder"><div><h2>Escolha uma mesa</h2><p>As mesas que pediram a conta aparecem primeiro.</p></div></div></section>`;
+  const b = bill(s), pays = C.pays.filter(p => p.session_id === s.id);
+  const amt = parseMoney(C.amount) ?? b.rem, rec = parseMoney(C.received);
+  return `<section class="main">
+    <div class="bh"><button class="back mobile-back" data-a="unsel" aria-label="Voltar">‹</button><span class="big">Mesa ${esc(label(s))}</span>
+      <span class="muted">${esc(staffName(s.waiter_id))} · ${s.people} pessoas · aberta às ${hhmm(s.opened_at)}</span><span class="grow"></span></div>
+    <div class="cols">
+      <div class="box"><div class="box-h">Consumo</div>
+        ${b.its.map(i => `<div class="ln ${i.status === "cancelado" ? "gone" : ""}"><span class="q num">${i.qty}</span><span class="nm">${esc(i.name_snapshot)}${i.status === "cancelado" ? `<small>Cancelado: ${esc(i.cancel_reason || "")}</small>` : i.note ? `<small>${esc(i.note)}</small>` : ""}</span>
+          <span class="num">${money(i.qty * i.unit_price_cents)}</span>${i.status === "cancelado" ? "<span></span>" : `<button class="del" data-a="m-cancel" data-v="${i.id}" aria-label="Cancelar item">×</button>`}</div>`).join("") || `<div class="ln"><span></span><span class="muted">Nada lançado.</span></div>`}
+        <div class="tot">
+          <div class="r"><span>Subtotal</span><span class="num">${money(b.sub)}</span></div>
+          <div class="r"><span>Serviço ${b.pct}% <button class="tgl" data-a="fee" aria-pressed="${s.service_fee_on}" aria-label="Taxa de serviço"></button></span><span class="num">${money(b.fee)}</span></div>
+          <div class="r"><span>Desconto <button class="linkb" data-a="m-discount">${s.discount_cents ? "alterar" : "aplicar"}</button></span><span class="num">${s.discount_cents ? "- " + money(s.discount_cents) : "-"}</span></div>
+          <div class="r T"><span>Total</span><span class="num">${money(b.total)}</span></div>
+          ${b.paid ? `<div class="r"><span>Já pago</span><span class="num">${money(b.paid)}</span></div>` : ""}
+        </div>
+        ${pays.length ? `<div class="paid-l">${pays.map(p => `<span>${hhmm(p.created_at)} · ${MLABEL[p.method]} · ${money(p.amount_cents)} · ${esc(staffName(p.created_by))}</span>`).join("")}</div>` : ""}
+      </div>
+      <div class="box"><div class="box-h">Receber</div><div class="pay">
+        <div class="tot" style="padding:0"><div class="r rem"><span>Falta</span><span class="num">${money(b.rem)}</span></div></div>
+        <div class="methods">${METHODS.map(([k, l]) => `<button data-a="method" data-v="${k}" aria-pressed="${C.method === k}">${l}</button>`).join("")}</div>
+        <label class="field">Valor deste pagamento<input inputmode="decimal" data-in="amount" placeholder="${centsToInput(b.rem)}" value="${esc(C.amount)}"></label>
+        <div class="split">Dividir por: ${[2, 3, 4, 5, 6].map(n => `<button data-a="split" data-v="${n}">${n}</button>`).join("")}<button data-a="split" data-v="1">Tudo</button></div>
+        ${C.method === "dinheiro" ? `<label class="field">Recebido em dinheiro<input inputmode="decimal" data-in="received" placeholder="0,00" value="${esc(C.received)}"></label>
+          ${rec != null && rec >= amt ? `<div class="change">Troco: ${money(rec - amt)}</div>` : ""}` : ""}
+        <button class="btn ok block" style="min-height:60px;font-size:18px" data-a="pay" ${C.busy || !b.rem ? "disabled" : ""}>Registrar ${money(Math.min(amt, b.rem))} em ${MLABEL[C.method]}</button>
+        <div class="muted" style="font-size:13px">O app não cobra o cartão: passe na maquininha e registre aqui. Quando o valor zera, a mesa fecha sozinha.</div>
+      </div></div>
+    </div></section>`;
+}
+
+function vModal() {
+  const m = C.modal; if (!m) return "";
+  const head = t => `<div class="modal-h"><h2>${t}</h2><button class="back" data-a="m-x" aria-label="Fechar">×</button></div>`;
+  const mgrPick = () => { const mg = (G.allStaff || []).filter(p => p.role === "gerente");
+    return `<div class="eyebrow">Autorização do gerente</div><div class="mgrs">${mg.map(p => `<button data-a="mgr" data-v="${p.id}" aria-pressed="${m.mgr === p.id}">${avatar(p, 30)}${esc(p.name)}</button>`).join("")}</div>
+      <label class="field">PIN do gerente<input type="password" inputmode="numeric" maxlength="4" data-in="mpin" value="${esc(m.pin || "")}"></label>`; };
+  let body = "";
+  if (m.type === "cancel") { const it = C.items.find(i => i.id === m.item);
+    body = head("Cancelar item") + `<div><b>${it.qty} ${esc(it.name_snapshot)}</b> · ${money(it.qty * it.unit_price_cents)}</div>
+      <label class="field">Motivo<input data-in="mreason" value="${esc(m.reason || "")}" placeholder="Ex.: lançado errado"></label>${mgrPick()}
+      <div class="err">${esc(m.err || "")}</div><button class="btn bad block" data-a="m-ok" ${C.busy ? "disabled" : ""}>Cancelar item</button>`; }
+  if (m.type === "discount") { const s = C.sessions.find(x => x.id === C.sel), b = bill(s);
+    body = head("Desconto na mesa " + esc(label(s))) + `<div class="chips">${[5, 10, 15, 20].map(p => `<button class="chip" data-a="dpct" data-v="${p}">${p}%</button>`).join("")}<button class="chip" data-a="dpct" data-v="0">Remover</button></div>
+      <label class="field">Valor do desconto (R$)<input inputmode="decimal" data-in="mval" value="${esc(m.val || "")}" placeholder="0,00"></label>
+      <div class="muted">Total antes do desconto: ${money(b.sub + b.fee)}</div>
+      <label class="field">Motivo<input data-in="mreason" value="${esc(m.reason || "")}" placeholder="Ex.: cliente frequente"></label>${mgrPick()}
+      <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="m-ok" ${C.busy ? "disabled" : ""}>Aplicar desconto</button>`; }
+  if (m.type === "move") body = head(m.kind === "sangria" ? "Sangria (retirar dinheiro)" : "Suprimento (colocar dinheiro)") + `
+      <label class="field">Valor (R$)<input inputmode="decimal" data-in="mval" value="${esc(m.val || "")}" placeholder="0,00"></label>
+      <label class="field">Motivo<input data-in="mreason" value="${esc(m.reason || "")}" placeholder="${m.kind === "sangria" ? "Ex.: depósito, pagamento de fornecedor" : "Ex.: reforço de troco"}"></label>
+      <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="m-ok" ${C.busy ? "disabled" : ""}>Confirmar</button>`;
+  if (m.type === "close") { const c = C.cash, counted = parseMoney(m.val);
+    if (m.result) { const r = m.result; body = head("Caixa fechado") + `<div class="sumt">${Object.entries(r.by_method || {}).map(([k, v]) => `<div class="r"><span>${MLABEL[k]}</span><span class="num">${money(v)}</span></div>`).join("")}
+        <div class="r T"><span>Total recebido</span><span class="num">${money(r.total)}</span></div></div>
+        <div class="diff" style="color:${r.difference === 0 ? "var(--ok)" : "var(--bad)"}">${r.difference === 0 ? "Caixa bateu certinho" : (r.difference > 0 ? "Sobrou " : "Faltou ") + money(Math.abs(r.difference))}</div>
+        <button class="btn primary block" data-a="m-x">Concluir</button>`; }
+    else body = head("Fechar caixa") + `<div class="sumt">
+        <div class="r"><span>Troco inicial</span><span class="num">${money(c.opening)}</span></div>
+        <div class="r"><span>Vendas em dinheiro</span><span class="num">${money(c.cash_sales)}</span></div>
+        <div class="r"><span>Suprimentos</span><span class="num">+ ${money(c.supply)}</span></div>
+        <div class="r"><span>Sangrias</span><span class="num">- ${money(c.withdrawal)}</span></div>
+        <div class="r T"><span>Deve ter na gaveta</span><span class="num">${money(c.expected_cash)}</span></div></div>
+        <div class="muted">Outras formas: ${Object.entries(c.by_method || {}).filter(([k]) => k !== "dinheiro").map(([k, v]) => MLABEL[k] + " " + money(v)).join(" · ") || "nenhuma"}</div>
+        ${C.sessions.length ? `<div class="err" style="text-align:left">Atenção: ainda há ${C.sessions.length} mesa(s) aberta(s).</div>` : ""}
+        <label class="field">Quanto você contou em dinheiro? (R$)<input inputmode="decimal" data-in="mval" value="${esc(m.val || "")}" placeholder="0,00"></label>
+        ${counted != null ? `<div class="diff" style="color:${counted === c.expected_cash ? "var(--ok)" : "var(--bad)"}">${counted === c.expected_cash ? "Bateu certinho" : (counted > c.expected_cash ? "Sobrando " : "Faltando ") + money(Math.abs(counted - c.expected_cash))}</div>` : ""}
+        <div class="err">${esc(m.err || "")}</div><button class="btn primary block" data-a="m-ok" ${C.busy || counted == null ? "disabled" : ""}>Fechar caixa</button>`; }
+  if (m.type === "counter") { const q = (m.q || "").toLowerCase().trim();
+    const list = C.menu.filter(p => !q || p.name.toLowerCase().includes(q) || String(p.n) === q).slice(0, 60);
+    const tot = m.cart.reduce((a, c) => a + c.qty * c.price, 0), rec = parseMoney(m.received);
+    body = head("Venda balcão") + `<label class="field">Buscar produto<input data-in="cq" value="${esc(m.q || "")}" placeholder="Nome ou número"></label>
+      <div class="prodgrid">${list.map(p => `<button class="prod" data-a="c-add" data-v="${esc(p.key)}"><small>Nº ${p.n}</small>${esc(p.name)}<small class="num">${money(p.price)}</small></button>`).join("")}</div>
+      ${m.cart.length ? `<div class="cartl">${m.cart.map((c, i) => `<div class="r"><span>${esc(c.name)}</span><span class="step"><button data-a="c-dec" data-v="${i}">-</button><b class="num">${c.qty}</b><button data-a="c-inc" data-v="${i}">+</button><span class="num" style="min-width:84px;text-align:right">${money(c.qty * c.price)}</span></span></div>`).join("")}</div>
+      <div class="methods">${METHODS.map(([k, l]) => `<button data-a="c-method" data-v="${k}" aria-pressed="${m.method === k}">${l}</button>`).join("")}</div>
+      ${m.method === "dinheiro" ? `<label class="field">Recebido em dinheiro<input inputmode="decimal" data-in="creceived" value="${esc(m.received || "")}" placeholder="0,00"></label>${rec != null && rec >= tot ? `<div class="change">Troco: ${money(rec - tot)}</div>` : ""}` : ""}
+      <div class="err">${esc(m.err || "")}</div><button class="btn ok block" style="min-height:58px" data-a="m-ok" ${C.busy ? "disabled" : ""}>Receber ${money(tot)}</button>` : `<div class="muted">Toque nos produtos para adicionar.</div>`}`;
+    return `<div class="modal-bg"><div class="modal wide" role="dialog" aria-modal="true">${body}</div></div>`; }
+  return `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">${body}</div></div>`;
+}
+
+function render() {
+  if (!G.ready) { app.innerHTML = `<div class="gate"><div class="muted">Carregando...</div></div>`; return; }
+  if (!G.user) { app.innerHTML = G.view(); return; }
+  const f = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.in;
+  app.innerHTML = `<div class="cx ${C.sel ? "sel" : ""}">${vSide()}${vMain()}</div>${vModal()}
+    ${C.toast ? `<div class="toast ${C.toast.bad ? "bad" : ""}">${esc(C.toast.t)}${C.toast.s ? `<small>${esc(C.toast.s)}</small>` : ""}</div>` : ""}
+    ${!navigator.onLine ? `<div class="net">Sem conexão. Pagamentos ficam bloqueados até a internet voltar.</div>` : ""}`;
+  if (f) { const el = app.querySelector(`[data-in="${f}"]`); if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
+}
+function toast(t, s, bad) { C.toast = { t, s, bad }; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { C.toast = null; render(); }, 3200); }
+async function run(fn, args) { C.busy = true; render(); try { return await rpcT(G, fn, args); } finally { C.busy = false; } }
+
+app.addEventListener("input", e => {
+  const k = e.target.dataset.in, v = e.target.value; if (G.input(k, v)) return;
+  const m = C.modal;
+  if (k === "opening") { C.opening = v; return; }
+  if (k === "amount") { C.amount = v; render(); return; }
+  if (k === "received") { C.received = v; render(); return; }
+  if (!m) return;
+  if (k === "mpin") m.pin = v.replace(/\D/g, "").slice(0, 4);
+  if (k === "mreason") m.reason = v;
+  if (k === "mval") { m.val = v; if (m.type === "close") render(); }
+  if (k === "cq") { m.q = v; render(); }
+  if (k === "creceived") { m.received = v; render(); }
+});
+app.addEventListener("click", async e => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v;
+  if (await G.click(a, v, render)) return;
+  const m = C.modal;
+  try {
+    switch (a) {
+      case "logout": G.logout(); render(); return;
+      case "sel": C.sel = v; C.amount = ""; C.received = ""; C.method = "pix"; break;
+      case "unsel": C.sel = null; break;
+      case "method": C.method = v; break;
+      case "split": { const s = C.sessions.find(x => x.id === C.sel), b = bill(s); C.amount = centsToInput(+v === 1 ? b.rem : Math.ceil(b.rem / +v)); break; }
+      case "open-cash": await run("cash_open", { p_opening_cents: parseMoney(C.opening) || 0 }); C.opening = ""; await loadCash(); toast("Caixa aberto", "Bom trabalho!"); return;
+      case "fee": { const s = C.sessions.find(x => x.id === C.sel); await run("set_service_fee", { p_session_id: s.id, p_on: !s.service_fee_on }); await loadLive(); break; }
+      case "pay": {
+        const s = C.sessions.find(x => x.id === C.sel), b = bill(s);
+        const amt = Math.min(parseMoney(C.amount) ?? b.rem, b.rem), rec = C.method === "dinheiro" ? parseMoney(C.received) : null;
+        if (!amt || amt <= 0) return toast("Valor inválido", "", true);
+        const r = await run("pay", { p_session_id: s.id, p_method: C.method, p_amount_cents: amt, p_received_cents: rec });
+        const lbl = label(s); C.amount = ""; C.received = "";
+        await Promise.all([loadLive(), loadCash()]);
+        if (r.closed) { C.sel = null; toast(`Mesa ${lbl} paga e fechada`, r.change ? "Troco: " + money(r.change) : ""); }
+        else toast(`Recebido ${money(amt)}`, `Falta ${money(r.remaining)}${r.change ? " · Troco: " + money(r.change) : ""}`);
+        return;
+      }
+      case "m-cancel": C.modal = { type: "cancel", item: v }; break;
+      case "m-discount": { const s = C.sessions.find(x => x.id === C.sel); C.modal = { type: "discount", val: s.discount_cents ? centsToInput(s.discount_cents) : "" }; break; }
+      case "dpct": { const s = C.sessions.find(x => x.id === C.sel), b = bill(s); m.val = centsToInput(Math.round((b.sub + b.fee) * +v / 100)); if (+v === 0) m.reason = m.reason || "Desconto removido"; break; }
+      case "m-move": C.modal = { type: "move", kind: v }; break;
+      case "m-close": await loadCash(); C.modal = { type: "close" }; break;
+      case "m-counter": if (!C.cash || !C.cash.open) return toast("O caixa está fechado", "Abra o caixa primeiro", true); C.modal = { type: "counter", cart: [], method: "pix", key: uuid() }; break;
+      case "m-x": C.modal = null; break;
+      case "mgr": m.mgr = v; break;
+      case "c-add": { const p = C.menu.find(x => x.key === v); const ex = m.cart.find(c => c.key === v); if (ex) ex.qty++; else m.cart.push({ ...p, qty: 1 }); m.key = uuid(); break; }
+      case "c-inc": m.cart[+v].qty++; m.key = uuid(); break;
+      case "c-dec": if (--m.cart[+v].qty <= 0) m.cart.splice(+v, 1); m.key = uuid(); break;
+      case "c-method": m.method = v; break;
+      case "m-ok": {
+        m.err = "";
+        if (m.type === "cancel" || m.type === "discount") {
+          if (!m.mgr) { m.err = "Escolha o gerente."; break; } if ((m.pin || "").length !== 4) { m.err = "Digite o PIN de 4 números."; break; }
+          const r = m.type === "cancel" ? await run("cancel_item", { p_item_id: m.item, p_reason: m.reason || "", p_mgr: m.mgr, p_pin: m.pin })
+            : await run("set_discount", { p_session_id: C.sel, p_amount_cents: parseMoney(m.val) || 0, p_reason: m.reason || "", p_mgr: m.mgr, p_pin: m.pin });
+          if (!r.ok) { m.err = "PIN do gerente incorreto."; m.pin = ""; break; }
+          C.modal = null; await loadLive(); toast(m.type === "cancel" ? "Item cancelado" : "Desconto aplicado", "Registrado no histórico"); return;
+        }
+        if (m.type === "move") { await run("cash_move", { p_type: m.kind, p_amount_cents: parseMoney(m.val), p_reason: m.reason || "" }); C.modal = null; await loadCash(); toast(m.kind === "sangria" ? "Sangria registrada" : "Suprimento registrado", ""); return; }
+        if (m.type === "close") { m.result = await run("cash_close", { p_counted_cents: parseMoney(m.val) }); await loadCash(); break; }
+        if (m.type === "counter") {
+          const items = m.cart.map(c => ({ product_id: c.id, size: c.size, qty: c.qty }));
+          const r = await run("counter_sale", { p_key: m.key, p_items: items, p_method: m.method, p_received_cents: m.method === "dinheiro" ? parseMoney(m.received) : null });
+          C.modal = null; await loadCash(); toast(`Venda balcão #${r.number}: ${money(r.total)}`, r.change ? "Troco: " + money(r.change) : "Registrada"); return;
+        }
+        break;
+      }
+    }
+  } catch (err) { console.warn("caixa", a, err); if (C.modal) { C.modal.err = errMsg(err); } else toast("Não deu certo", errMsg(err), true); }
+  render();
+});
+document.addEventListener("keydown", e => { if (!G.user) { G.key(e, render); return; } if (e.key === "Escape" && C.modal) { C.modal = null; render(); } });
+document.addEventListener("gesturestart", e => e.preventDefault());
+window.addEventListener("online", () => { render(); schedule(); }); window.addEventListener("offline", render);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && G.user) schedule(); });
+setInterval(() => { if (G.user && !C.modal) schedule(); }, 20000);
+
+render();
+G.load().then(async () => {
+  render(); if (G.user) await loadAll();
+  if (G.auth) sb.channel("caixa")
+    .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, schedule)
+    .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, schedule)
+    .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, schedule)
+    .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions" }, schedule)
+    .subscribe();
+}).catch(err => { app.innerHTML = `<div class="gate"><div class="err">${esc(errMsg(err))}</div><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+</script>
+</body>
+</html>

@@ -441,6 +441,7 @@ let TABLES = [];
 const T = id => TABLES.find(t=>t.id===id);
 const me = () => STAFF.find(p=>p.id===S.user);
 const sub = s => s.items.filter(i=>i.st!=="cancelado").reduce((a,i)=>a+i.qty*(i.price||0),0);
+const billOf = s => { const st=sub(s), fee=s.feeOn===false?0:Math.round(st*BAR.serviceFee), total=Math.max(0,st+fee-(s.discount||0)); return {sub:st,fee,total,paid:s.paid||0,rem:Math.max(0,total-(s.paid||0))}; };
 function tState(t){
   if(!t.s) return "livre";
   if(t.s.flag==="chamou") return "chamou";
@@ -455,7 +456,7 @@ function alerts(){
     const pr=t.s.items.filter(i=>i.st==="pronto");
     if(t.s.flag==="chamou") out.push({t,kind:"chamou",title:"Chamou o garçom",txt:"Pelo QR às "+t.s.flagAt,w:0});
     if(pr.length) out.push({t,kind:"pronto",title:"Pedido pronto",txt:pr.map(i=>i.qty+" "+i.name).join(", "),w:1});
-    if(t.s.flag==="conta") out.push({t,kind:"conta",title:"Pediu a conta",txt:money(Math.round(sub(t.s)*(1+BAR.serviceFee)))+" com serviço",w:2});
+    if(t.s.flag==="conta") out.push({t,kind:"conta",title:"Pediu a conta",txt:money(billOf(t.s).rem)+" a pagar",w:2});
   });
   return out.sort((a,b)=>a.w-b.w);
 }
@@ -467,7 +468,7 @@ const ERR = {
   PRODUTO_INVALIDO:"Um produto do pedido não existe mais.", PRODUTO_ESGOTADO:"Produto esgotado", SEM_PRECO:"Produto sem preço",
   TAMANHO_INVALIDO:"Escolha o tamanho de novo", QUANTIDADE_INVALIDA:"Quantidade inválida.",
   PIN_INVALIDO:"PIN incorreto.", BLOQUEADO:"Muitas tentativas. Aguarde 5 minutos ou chame o gerente.",
-  APARELHO_NAO_AUTORIZADO:"Este aparelho não está autorizado."
+  APARELHO_NAO_AUTORIZADO:"Este aparelho não está autorizado.", CAIXA_FECHADO:"O caixa está fechado.", SEM_PERMISSAO:"Sua função não permite isso.", VALOR_INVALIDO:"Valor inválido."
 };
 const errMsg = e => { const m=String((e&&e.message)||e||""); const [code,extra]=m.split(":"); return ERR[code]?(ERR[code]+(extra?": "+extra:"")):"Algo deu errado. Tente de novo."; };
 const isNetErr = e => !navigator.onLine || /fetch|network|Load failed|timeout/i.test(String((e&&e.message)||e||""));
@@ -496,29 +497,31 @@ async function loadStatic(){
   ]);
   for(const r of [est,st,tb,ca,pr]) if(r.error) throw r.error;
   BAR = { name:est.data.name, serviceFee:Number(est.data.service_fee_pct)/100, kitchen:est.data.kitchen_enabled };
-  STAFF = st.data.map(p=>({id:p.id,name:p.name,role:p.role_label,photo:p.photo_url||"img/avatar.png",portrait:p.portrait_url||p.photo_url||"img/avatar.png"}));
+  STAFF = st.data.filter(p=>p.role==="garcom"||p.role==="gerente").map(p=>({id:p.id,name:p.name,role:p.role_label,photo:p.photo_url||"img/avatar.png",portrait:p.portrait_url||p.photo_url||"img/avatar.png"}));
   buildMenu(ca.data, pr.data);
   TABLES = tb.data.map(t=>({id:t.label, dbid:t.id, area:t.area, s:null}));
 }
 
 async function loadLive(){
-  const ses = await sb.from("table_sessions").select("id,table_id,waiter_id,people,flag,flag_at,opened_at").eq("status","open");
+  const ses = await sb.from("table_sessions").select("id,table_id,waiter_id,people,flag,flag_at,opened_at,service_fee_on,discount_cents").eq("status","open");
   if(ses.error) throw ses.error;
   const ids = ses.data.map(x=>x.id);
-  let items=[], evs=[];
+  let items=[], evs=[], pays=[];
   if(ids.length){
-    const [it, ev] = await Promise.all([
+    const [it, ev, pa] = await Promise.all([
       sb.from("order_items").select("id,session_id,product_id,size_label,name_snapshot,unit_price_cents,qty,note,area,status,created_at,orders(number)").in("session_id",ids).order("created_at"),
-      sb.from("session_events").select("session_id,message,created_at").in("session_id",ids).order("id")
+      sb.from("session_events").select("session_id,message,created_at").in("session_id",ids).order("id"),
+      sb.from("payments").select("session_id,amount_cents").in("session_id",ids)
     ]);
-    if(it.error) throw it.error; if(ev.error) throw ev.error;
-    items=it.data; evs=ev.data;
+    if(it.error) throw it.error; if(ev.error) throw ev.error; if(pa.error) throw pa.error;
+    items=it.data; evs=ev.data; pays=pa.data;
   }
   const byNum = {}; ALL.forEach(b=>byNum[b.id]=b);
   TABLES.forEach(t=>t.s=null);
   ses.data.forEach(x=>{
     const t = TABLES.find(t=>t.dbid===x.table_id); if(!t) return;
     t.s = {sid:x.id, opened:hhmm(x.opened_at), waiter:x.waiter_id, people:x.people, flag:x.flag, flagAt:x.flag_at?hhmm(x.flag_at):"",
+      feeOn:x.service_fee_on, discount:x.discount_cents||0, paid:pays.filter(p=>p.session_id===x.id).reduce((a,p)=>a+p.amount_cents,0),
       items: items.filter(i=>i.session_id===x.id).map(i=>{const b=byNum[i.product_id]; const pid=b?(b.n+(i.size_label?"-"+i.size_label[0]:"")):"x";
         return {pid, name:i.name_snapshot, price:i.unit_price_cents, area:i.area, qty:i.qty, st:i.status, note:i.note||"", order:i.orders?i.orders.number:null}}),
       log: evs.filter(e=>e.session_id===x.id).map(e=>[hhmm(e.created_at), e.message])};
@@ -535,6 +538,7 @@ function subscribe(){
       if(ev.eventType==="UPDATE" && ev.new && ev.new.status==="pronto" && ev.old && ev.old.status!=="pronto") S.readyPing=true;
       scheduleLive();})
     .on("postgres_changes",{event:"INSERT",schema:"public",table:"session_events"},scheduleLive)
+    .on("postgres_changes",{event:"*",schema:"public",table:"payments"},scheduleLive)
     .on("postgres_changes",{event:"*",schema:"public",table:"products"},async()=>{ try{ await loadStatic(); await loadLive(); render(); }catch(e){} })
     .subscribe();
 }
@@ -649,6 +653,7 @@ function vLogin(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="eyebrow">${esc(BAR.name)}</div>${temaSwitch()}</div>
     <div style="margin-top:-12px"><div class="brandmark">Quem está no<br><span class="grad-text">salão hoje?</span></div></div>
     <div class="people">${STAFF.map(p=>`<button class="person" data-a="who" data-v="${p.id}" aria-label="${esc(p.name)}, ${p.role}"><img src="${p.portrait}" alt=""><span class="cap"><b>${esc(p.name)}</b><span class="role">${p.role}</span></span></button>`).join("")}</div>
+    <div class="demo-tag">Outras telas: <a href="cozinha.html" style="color:var(--fg)">Cozinha/Bar</a> · <a href="caixa.html" style="color:var(--fg)">Caixa</a> · <a href="painel.html" style="color:var(--fg)">Dono</a></div>
     <button class="linkbtn" data-a="deactivate">Desativar este aparelho</button>
   </div>`;
 }
@@ -716,7 +721,7 @@ function vSalao(){
 function vMesa(){
   const t=T(S.mesa), s=t.s; if(!s){S.view="salao";return vSalao()}
   const st=tState(t), w=staff(s.waiter);
-  const subtotal=sub(s), fee=Math.round(subtotal*BAR.serviceFee);
+  const B=billOf(s), subtotal=B.sub, fee=B.fee;
   const hasReady=s.items.some(i=>i.st==="pronto"||(!BAR.kitchen&&i.st==="preparo"));
   return `<div class="top"><button class="back" data-a="home" aria-label="Voltar">${I.back}</button><div class="grow"><div class="eyebrow">${t.area}</div><h1 style="font-size:20px">Mesa ${t.id}</h1></div>
   ${hasReady?`<button class="btn ok" data-a="deliver" data-v="${t.id}">${I.check}Entreguei</button>`:s.flag==="chamou"?`<button class="btn ok" data-a="ack" data-v="${t.id}">Fui lá</button>`:""}</div>
@@ -733,7 +738,7 @@ function vMesa(){
    </div>
    <div class="section-h"><h3>Consumo</h3><span class="eyebrow">${s.items.filter(i=>i.st!=="cancelado").reduce((a,i)=>a+i.qty,0)} itens</span></div>
    <div class="bill">${s.items.length?s.items.map(i=>`<div class="line ${i.st==="cancelado"?"cx":""}"><span class="q num">${i.qty}</span><span class="nm">${esc(i.name)}${i.note?`<small>${esc(i.note)}</small>`:""}<span class="st ${i.st}">${{preparo:(!BAR.kitchen?"Lançado":i.area==="bar"?"No bar":"Na cozinha"),pronto:"Pronto p/ levar",entregue:"Entregue",cancelado:"Cancelado"}[i.st]}</span></span><span class="p num">${i.price==null?"a definir":money(i.qty*i.price)}</span></div>`).join(""):`<div class="empty" style="border:0">Nada lançado ainda. Toque em Pedido.</div>`}
-    <div class="totals"><div><span>Subtotal</span><span class="num">${money(subtotal)}</span></div><div><span>Serviço ${Math.round(BAR.serviceFee*100)}%</span><span class="num">${money(fee)}</span></div><div class="T"><span>Total</span><span class="num">${money(subtotal+fee)}</span></div></div>
+    <div class="totals"><div><span>Subtotal</span><span class="num">${money(subtotal)}</span></div><div><span>Serviço ${Math.round(BAR.serviceFee*100)}%</span><span class="num">${money(fee)}</span></div>${B.discount||s.discount?`<div><span>Desconto</span><span class="num">- ${money(s.discount)}</span></div>`:""}<div class="T"><span>Total</span><span class="num">${money(B.total)}</span></div>${B.paid?`<div><span>Já pago</span><span class="num">${money(B.paid)}</span></div>`:""}</div>
    </div>
    <div class="section-h"><h3>Histórico</h3></div>
    <ul class="log">${s.log.slice().reverse().map(([h,x])=>`<li><time>${h}</time>${esc(x)}</li>`).join("")}</ul>
@@ -832,13 +837,16 @@ function shRepeat(){
    <div class="sh-f"><button class="btn primary block" data-a="doRepeat" style="justify-content:space-between"><span>Mandar de novo</span><span class="num">${money(tot)}</span></button></div>`;
 }
 function shBill(){
-  const t=T(S.mesa), s=t.s, subtotal=sub(s), fee=Math.round(subtotal*BAR.serviceFee);
+  const t=T(S.mesa), s=t.s, B=billOf(s);
   const pend=s.items.some(i=>i.st==="preparo"||i.st==="pronto");
+  const M=[["pix","Pix"],["debito","Débito"],["credito","Crédito"],["dinheiro","Dinheiro"]];
   return head(`Conta · mesa ${t.id}`)+`<div class="sh-b">
-   <div class="hero conta" style="margin:0"><div class="hero-row"><div><span class="st-pill">Total com serviço</span><div class="big num" style="font-size:48px">${money(subtotal+fee)}</div>
-   <div class="meta"><span>${money(subtotal)} + serviço ${money(fee)}</span></div></div></div>
-   <div class="code"><div><div style="font-size:10px;letter-spacing:.14em;font-weight:800;opacity:.85">POR PESSOA (${s.people})</div><b class="num" style="letter-spacing:0">${money(Math.ceil((subtotal+fee)/s.people))}</b></div><span>${s.items.reduce((a,i)=>a+(i.st==="cancelado"?0:i.qty),0)} itens na conta</span></div></div>
-   ${pend?`<div class="empty" style="text-align:left;border-style:solid">Ainda tem item em preparo ou para entregar. O caixa só fecha depois da entrega.</div>`:""}
+   <div class="hero conta" style="margin:0"><div class="hero-row"><div><span class="st-pill">${B.paid?"Falta pagar":"Total com serviço"}</span><div class="big num" style="font-size:48px">${money(B.rem)}</div>
+   <div class="meta"><span>${money(B.sub)} + serviço ${money(B.fee)}${s.discount?` - desconto ${money(s.discount)}`:""}${B.paid?` · já pago ${money(B.paid)}`:""}</span></div></div></div>
+   <div class="code"><div><div style="font-size:10px;letter-spacing:.14em;font-weight:800;opacity:.85">POR PESSOA (${s.people})</div><b class="num" style="letter-spacing:0">${money(Math.ceil(B.rem/s.people))}</b></div><span>${s.items.reduce((a,i)=>a+(i.st==="cancelado"?0:i.qty),0)} itens na conta</span></div></div>
+   ${pend?`<div class="empty" style="text-align:left;border-style:solid">Ainda tem item em preparo ou para entregar.</div>`:""}
+   <div class="eyebrow">Recebeu na maquininha? Toque na forma de pagamento</div>
+   <div class="pick" style="grid-template-columns:repeat(4,1fr)">${M.map(([k,l])=>`<button data-a="payAll" data-v="${k}" ${S.busy||!B.rem?"disabled":""}>${l}</button>`).join("")}</div>
   </div><div class="sh-f"><button class="btn primary block" data-a="toCashier">${I.bell}Mandar para o caixa</button></div>`;
 }
 
@@ -927,6 +935,10 @@ app.addEventListener("click",async e=>{
    case "deliver": { const t=T(v); await act("deliver_ready",{p_session_id:t.s.sid},`Mesa ${v}`,"Entrega registrada"); return; }
    case "ack": { const t=T(v); await act("ack_call",{p_session_id:t.s.sid},`Mesa ${v}`,"Chamado atendido"); return; }
    case "bill": S.mesa=v; S.sheet=shBill; break;
+   case "payAll": { const t=T(S.mesa), B=billOf(t.s); if(!B.rem||S.busy) return; if(!confirm(`Registrar ${money(B.rem)} recebido em ${el.textContent.trim()} na mesa ${t.id}? A mesa será fechada.`)) return;
+     S.busy=true; try{ await rpc("pay",{p_token:S.token,p_session_id:t.s.sid,p_method:v,p_amount_cents:B.rem,p_received_cents:null}); S.sheet=null; S.view="inicio"; await loadLive(); toast(`Mesa ${t.id} paga`,"Mesa fechada e liberada"); }
+     catch(e){ toast("Não deu certo", /CAIXA_FECHADO/.test(e.message)?"O caixa está fechado. Peça para abrir o caixa.":isNetErr(e)?"Sem conexão. Tente de novo.":errMsg(e)); }
+     S.busy=false; return; }
    case "toCashier": { const t=T(S.mesa); S.sheet=null; await act("send_to_cashier",{p_session_id:t.s.sid},`Mesa ${t.id}`,"Conta enviada para o caixa"); return; }
    case "transfer": S.mesa=v; S.openPick=null; S.sheet=shTransfer; break;
    case "doTransfer": { if(S.busy) return; S.busy=true; const from=T(S.mesa), to=S.openPick; const ok=await act("transfer_table",{p_session_id:from.s.sid,p_to_table:T(to).dbid}); S.busy=false;

@@ -17,14 +17,24 @@
 - Dados de teste: cardápio do Cumbuca's, 6 pessoas na equipe com PIN 1234, 30 mesas.
 - Cozinha está DESLIGADA no bar (`kitchen_enabled = false`): o garçom marca "Entreguei" direto.
 
+## Etapa 2 - concluída (14/10/2026): cozinha, caixa e dono
+- `cozinha.html`: tela da cozinha/bar (tablet deitado). Cartão por pedido com mesa, garçom, cronômetro (âmbar 12 min, vermelho 20 min), observação em destaque, cancelado em vermelho, som de pedido novo, PRONTO por pedido ou por item, desfazer. Filtro Cozinha / Bar / Tudo.
+- `caixa.html`: mesas ao vivo (quem pediu conta primeiro), conta com serviço liga/desliga, desconto e cancelamento com PIN de gerente + motivo, pagamento por forma (Pix, débito, crédito, dinheiro com troco), dividir por N, pagamento parcial, mesa fecha sozinha ao zerar. Venda balcão. Abertura, sangria, suprimento e fechamento com conferência.
+- `painel.html`: login próprio do dono (sessão separada do aparelho). Faturamento com comparação, ticket médio, gasto por pessoa, mais/menos vendidos, não vendidos, formas de pagamento, horário de movimento, equipe, cancelamentos, descontos, caixas. Aba Cardápio: preço e esgotado.
+- App do garçom: conta mostra desconto e já pago; garçom registra pagamento na maquininha (fecha a mesa). Lista de login só garçom e gerente.
+- Banco (migração 005): `cash_sessions`, `cash_movements`, `payments`, `counter_sales`, `counter_sale_items`; funções `set_items_ready`, `undo_ready`, `cash_open/move/close/status`, `set_service_fee`, `set_discount`, `cancel_item`, `pay`, `counter_sale`, `owner_report`, `owner_update_product`, `whoami`. Cada função confere a função (role) de quem chama.
+- Equipe de teste nova: Rosa (cozinha), Tiago (bar), Júlia (caixa). PIN 1234. Gerente Marcela autoriza descontos e cancelamentos.
+- Conta do dono do Cumbuca's: `dono.cumbucas@dnbar.app`.
+- `core.js`: peças comuns das telas novas (conexão, login com PIN, tema, CSS base).
+- Cozinha LIGADA no Cumbuca's (`kitchen_enabled = true`).
+
 ## Pendências conhecidas
 - Trocar os PINs de teste (1234) antes de uso real.
 - Cadastro público bloqueado no banco (migração 003). Reforço opcional: desligar "Allow new users to sign up" no painel do Supabase.
 - Pedido pelo QR do cliente: fora do escopo por enquanto.
 
 ## Próximas etapas
-2. Tela da cozinha/bar (KDS): `cozinha.html`, ligar `kitchen_enabled`, função `set_items_ready`, som, cronômetro, observação grande, cancelado em destaque.
-3. Caixa: `caixa.html`, pagamento (forma, parcial, dividida), taxa de serviço, venda balcão, desconto/cancelamento com PIN de gerente, abertura/sangria/fechamento de caixa.
-4. Dono/configuração: relatórios dia/semana/mês, cardápio, equipe (foto, PIN, desativar), mesas, aparelhos.
+3. Configuração completa no painel do dono: fotos (Supabase Storage), novos produtos e categorias, logo e cor, equipe (foto, PIN, desativar), mesas, aparelhos.
+4. Painel da plataforma (do Hux): criar bares, gerar acessos, ver quem paga.
 
 Especificação completa: docs `SAAS_BAR_RESTAURANTE.md` + `SAAS_BAR_RESTAURANTE_ADENDO_1.md` no projeto do Claude.
