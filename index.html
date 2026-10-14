@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0A0A0B">
 <style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
 <title>DNBAR Garçom</title>
@@ -340,6 +340,35 @@ svg{width:22px;height:22px;flex:none}
 .loading{flex:1;display:grid;place-items:center;color:var(--muted);font-weight:600}
 .linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;font-weight:600;text-decoration:underline;justify-self:center}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.scrim{opacity:1}}
+
+/* ===== App travado: sem zoom de pinça, sem tela "balançando" ===== */
+html,body{overscroll-behavior:none;touch-action:manipulation}
+body{position:fixed;inset:0;overflow:hidden;-webkit-user-select:none;user-select:none}
+input{-webkit-user-select:text;user-select:text}
+
+/* ===== Telas maiores: celular deitado, tablet e computador ===== */
+@media (min-width:640px){
+  #app{max-width:none;border:0}
+  .top,.scroll{padding-left:max(24px,calc((100% - 1100px) / 2));padding-right:max(24px,calc((100% - 1100px) / 2))}
+  .stats{margin:0 0 16px;padding:0}
+  .tables{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+  .minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  .pick{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
+  .people{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .login{width:100%;max-width:760px;margin:0 auto}
+  .pad,.pin-dots{width:100%;max-width:360px;margin-left:auto;margin-right:auto}
+  .nav{width:min(520px,calc(100% - 24px));margin-left:auto;margin-right:auto}
+  .sheet{max-width:640px;margin:0 auto}
+  .toast{max-width:520px;margin:0 auto}
+  .cartbar{width:100%;max-width:640px;margin:0 auto}
+}
+/* celular deitado: pouca altura, cartões da equipe menores */
+@media (orientation:landscape) and (max-height:500px){
+  .people{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  .brandmark{font-size:28px}
+  .pad button{height:48px}
+}
 </style>
 
 </head>
@@ -912,6 +941,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Escape"&&S.sheet){S.sheet=null;S.sent=null;render()}
 });
 sb.auth.onAuthStateChange((ev,session)=>{ if(ev==="SIGNED_OUT"){ S.auth=null; S.loaded=false; S.user=null; render(); } else if(session) S.auth=session; });
+document.addEventListener("gesturestart",e=>e.preventDefault());
 if("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 render();
 boot();
