@@ -21,7 +21,8 @@ export const ERR = {
   APARELHO_NAO_AUTORIZADO: "Este aparelho não está autorizado.", CAIXA_FECHADO: "O caixa está fechado. Abra o caixa primeiro.",
   CAIXA_JA_ABERTO: "O caixa já está aberto.", VALOR_INVALIDO: "Valor inválido.", MOTIVO_OBRIGATORIO: "Escreva o motivo.",
   PIN_GERENTE_INVALIDO: "PIN do gerente incorreto.", ITEM_INVALIDO: "Esse item não pode mais ser cancelado.",
-  FORMA_INVALIDA: "Escolha a forma de pagamento.", RECEBIDO_MENOR: "Valor recebido menor que o valor pago."
+  FORMA_INVALIDA: "Escolha a forma de pagamento.", RECEBIDO_MENOR: "Valor recebido menor que o valor pago.",
+  STATUS_INVALIDO: "Esse pedido já mudou de etapa.", PEDIDO_INVALIDO: "Pedido não encontrado.", PLANO_SEM_DELIVERY: "O plano deste bar não inclui delivery.", PIX_INVALIDO: "Chave Pix inválida para o tipo escolhido."
 };
 export const isNetErr = e => !navigator.onLine || /fetch|network|Load failed|timeout/i.test(String((e && e.message) || e || ""));
 export const errMsg = e => { if (isNetErr(e)) return "Sem conexão. Tente de novo em instantes."; const m = String((e && e.message) || e || ""); const [code, extra] = m.split(":"); return ERR[code] ? (ERR[code] + (extra ? ": " + extra : "")) : "Algo deu errado. Tente de novo."; };
@@ -78,7 +79,7 @@ export function makeGate(cfg) {
       ${G.bar.logo_url ? `<img class="logo" src="${esc(G.bar.logo_url)}" alt="${esc(G.bar.name)}">` : ""}
       <h1 class="big">Quem está<br>no ${esc(cfg.title.toLowerCase())}?</h1>
       <div class="people">${G.staff.map(p => `<button class="person" data-a="g-who" data-v="${p.id}">${avatar(p, 72)}<b>${esc(p.name)}</b><span>${esc(p.role_label)}</span></button>`).join("") || `<div class="muted">Nenhuma pessoa cadastrada com essa função.</div>`}</div>
-      <div class="switch">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha/Bar</a> · <a href="caixa.html">Caixa</a> · <a href="painel.html">Dono</a></div></div>`;
+      <div class="switch">Outras telas: <a href="./">Garçom</a> · <a href="cozinha.html">Cozinha/Bar</a> · <a href="caixa.html">Caixa</a> · <a href="delivery.html">Delivery</a> · <a href="painel.html">Dono</a></div></div>`;
   };
   G.pinDigit = async (d, render) => {
     if (G.busy) return; G.pin += d; G.err = "";

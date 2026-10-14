@@ -28,6 +28,20 @@
 - `core.js`: peças comuns das telas novas (conexão, login com PIN, tema, CSS base).
 - Cozinha LIGADA no Cumbuca's (`kitchen_enabled = true`).
 
+## Etapa 3 - concluída (14/10/2026): delivery (plano Salão + Delivery)
+- Planos por bar: `establishments.plan` = `salao` ou `salao_delivery`. Só a plataforma muda o plano (SQL). O delivery só aparece para quem tem o plano.
+- `pedir.html` (link público, sem login): https://dnabar.vercel.app/pedir/<slug> (rewrite no vercel.json). Cardápio, carrinho, endereço, pagamento (Pix agora, dinheiro com troco, cartão na entrega), acompanhamento com linha do tempo, QR Code Pix e copia e cola, botão WhatsApp. Dados do cliente ficam salvos no aparelho dele.
+- Pix: BR Code estático gerado no servidor (`_pix_payload`, CRC conferido com o exemplo do Banco Central). O dinheiro cai direto na chave do restaurante. Confirmação manual no painel.
+- `delivery.html` (caixa/gerente): colunas Novos, Aguardando Pix, Em preparo, Saiu para entrega; aceitar/recusar com motivo, confirmar Pix, saiu, entregue (cartão pergunta débito/crédito), abrir/fechar delivery, link para copiar, som de pedido novo.
+- Cozinha mostra os pedidos de delivery em preparo (cartão azul "DELIVERY") e marca pronto.
+- Pagamentos do delivery entram no caixa do dia (precisa caixa aberto para confirmar).
+- Painel do dono: aba Delivery (link, chave Pix, WhatsApp, taxa, mínimo, tempo) e KPI de delivery no resumo.
+- Segurança: cliente só usa `public_menu`, `public_create_order` (preço recalculado no servidor, idempotente, limite por telefone/IP/minuto) e `public_track` (por token secreto). Nenhuma leitura pública de tabela.
+- Cumbuca's: slug `cumbucas`, plano com delivery, taxa R$ 5, mínimo R$ 20, 45 min. Pix ainda não configurado (o dono configura no painel).
+
+## Próximo no delivery (v2)
+- Conectar Mercado Pago do restaurante (OAuth), Pix dinâmico e confirmação automática por webhook conferida na API. Tabela `payment_connections`, token no Supabase Vault.
+
 ## Pendências conhecidas
 - Trocar os PINs de teste (1234) antes de uso real.
 - Cadastro público bloqueado no banco (migração 003). Reforço opcional: desligar "Allow new users to sign up" no painel do Supabase.

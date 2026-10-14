@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<title>Fazer pedido</title>
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{--bg:#F6F6F4;--surface:#FFFFFF;--surface-2:#EFEFEC;--line:#E3E3DE;--fg:#121212;--muted:#62625E;--accent:#121212;--on-accent:#FFFFFF;--ok:#15803D;--warn:#B45309;--bad:#DC2626;--shadow:0 10px 30px rgba(0,0,0,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0B0C;--surface:#151517;--surface-2:#1F1F22;--line:#2A2A2E;--fg:#F4F4F5;--muted:#A0A0A8;--accent:#F4F4F5;--on-accent:#0B0B0C;--ok:#22C47F;--warn:#F5B000;--bad:#F04452;--shadow:0 10px 30px rgba(0,0,0,.5)}}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-size:16px;-webkit-tap-highlight-color:transparent}
+h1,h2,h3{font-family:"Sora",system-ui,sans-serif;margin:0;letter-spacing:-.02em}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #3B82F6;outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}.muted{color:var(--muted)}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px 120px}
+.hero{padding:22px 0 14px;display:flex;gap:14px;align-items:center}
+.hero img{width:64px;height:64px;border-radius:18px;object-fit:cover;background:var(--surface-2)}
+.hero .ini{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font-family:"Sora",sans-serif;font-weight:800;font-size:24px}
+.hero h1{font-size:26px}
+.facts{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.fact{font-size:13px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
+.fact.open{background:var(--ok);color:#fff;border:0}.fact.closed{background:var(--bad);color:#fff;border:0}
+.closed-box{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;font-weight:600;margin-bottom:12px}
+.cats{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:8px;overflow-x:auto;padding:10px 0;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cats button{flex:none;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:700;font-size:14px}
+.cat-h{font-size:18px;margin:18px 0 10px}
+.prod{display:grid;grid-template-columns:1fr 92px;gap:12px;padding:12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);margin-bottom:10px;text-align:left;width:100%}
+.prod b{display:block;font-size:16px}.prod .pr{margin-top:8px;font-weight:800}
+.prod img,.prod .noimg{width:92px;height:92px;border-radius:14px;object-fit:cover;background:var(--surface-2)}
+.prod.off{opacity:.5}.prod .tag{font-size:12px;font-weight:800;color:var(--bad)}
+.prod .qty{display:inline-block;margin-left:8px;background:var(--accent);color:var(--on-accent);border-radius:999px;padding:1px 8px;font-size:12px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%);z-index:10}
+.bar .btn{max-width:688px;margin:0 auto}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;border-radius:18px;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:17px;padding:0 18px}
+.btn.sec{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+.btn.ok{background:#16A34A;color:#fff}
+.btn .sp{flex:1;text-align:left}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom));display:grid;gap:14px}
+.sh-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.x{width:42px;height:42px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-size:22px}
+.opt{display:flex;justify-content:space-between;align-items:center;min-height:56px;padding:0 16px;border-radius:16px;background:var(--surface);border:1px solid var(--line);font-weight:700;width:100%}
+.opt[aria-pressed="true"]{border:2px solid var(--fg)}
+.line{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.step{display:flex;align-items:center;gap:8px}.step button{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-weight:800;font-size:18px}
+.field{display:grid;gap:6px;font-weight:600;font-size:14px;color:var(--muted)}
+.field input,.field textarea{height:50px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:0 14px;font:inherit;font-size:16px;font-weight:600;width:100%}
+.field textarea{height:72px;padding:10px 14px;resize:none}
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.sum{display:grid;gap:6px;font-weight:600}.sum .r{display:flex;justify-content:space-between}.sum .T{font-family:"Sora",sans-serif;font-size:20px;font-weight:800}
+.err{color:var(--bad);font-weight:700}
+.track{padding-top:20px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;display:grid;gap:10px}
+.status-big{font-family:"Sora",sans-serif;font-size:24px;font-weight:800}
+.tl{display:grid;gap:0}
+.tl .s{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;padding:8px 0;color:var(--muted);font-weight:600}
+.tl .s i{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);justify-self:center}
+.tl .s.done{color:var(--fg)}.tl .s.done i{background:var(--ok);border-color:var(--ok)}
+.tl .s.now{color:var(--fg);font-weight:800}.tl .s.now i{border-color:var(--fg);box-shadow:0 0 0 4px color-mix(in srgb,var(--fg) 15%,transparent)}
+.qr{display:grid;justify-items:center;gap:10px}
+.qr .box{background:#fff;padding:12px;border-radius:16px}
+.qr .box img{display:block;width:220px;height:220px;image-rendering:pixelated}
+.code{font-family:monospace;font-size:12px;word-break:break-all;background:var(--surface-2);padding:10px;border-radius:12px;max-height:84px;overflow:auto;user-select:all}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:40;background:var(--fg);color:var(--bg);border-radius:14px;padding:12px 16px;font-weight:700}
+.foot{text-align:center;font-size:12px;color:var(--muted);margin-top:24px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+const sb = createClient("https://omshldyfjethjufjhkrd.supabase.co", "sb_publishable_xLQMg0R5NOM8GA6mShSPiw_TJa7_J1V", { auth: { persistSession: false } });
+const app = document.getElementById("app");
+const money = c => "R$ " + ((c || 0) / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+const hhmm = ts => ts ? new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
+const img = u => u ? (u.startsWith("http") || u.startsWith("/") ? u : "/" + u) : "";
+const parseMoney = s => { const v = String(s || "").replace(/[^\d,.]/g, "").replace(/\./g, "").replace(",", "."); const n = Math.round(parseFloat(v) * 100); return isNaN(n) ? null : n; };
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch (e) { return d } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) { } } };
+
+const qs = new URLSearchParams(location.search);
+const slug = (location.pathname.match(/\/pedir\/([a-z0-9-]+)/i) || [])[1] || qs.get("b") || "";
+const ERR = { DELIVERY_FECHADO: "O delivery está fechado agora.", NOME_INVALIDO: "Digite seu nome.", TELEFONE_INVALIDO: "Digite um WhatsApp válido com DDD.",
+  ENDERECO_INVALIDO: "Preencha rua, número e bairro.", FORMA_INVALIDA: "Escolha a forma de pagamento.", MUITOS_PEDIDOS: "Muitos pedidos seguidos. Aguarde alguns minutos.",
+  PEDIDO_VAZIO: "Seu pedido está vazio.", PRODUTO_ESGOTADO: "Produto esgotado", PEDIDO_MINIMO: "Pedido mínimo de", TROCO_MENOR: "O valor do troco é menor que o total.",
+  PRODUTO_INVALIDO: "Um produto saiu do cardápio. Atualize a página.", TAMANHO_INVALIDO: "Escolha o tamanho de novo", RESTAURANTE_NAO_ENCONTRADO: "Restaurante não encontrado." };
+const errMsg = e => { const m = String((e && e.message) || e || ""); if (!navigator.onLine || /fetch|network/i.test(m)) return "Sem conexão. Tente de novo."; const [c, x] = m.split(":"); return ERR[c] ? ERR[c] + (x ? " " + x : "") : "Não foi possível enviar. Tente de novo."; };
+
+const S = { menu: null, err: "", cart: store.get("dnbar-cart-" + slug, []), sheet: null, size: null, me: store.get("dnbar-cliente", { name: "", phone: "", rua: "", numero: "", complemento: "", bairro: "", referencia: "" }),
+  method: null, change: "", note: "", busy: false, key: uuid(), track: null, token: qs.get("t") || null, toast: null };
+const saveCart = () => store.set("dnbar-cart-" + slug, S.cart);
+const allProds = () => S.menu ? S.menu.categories.flatMap(c => c.products) : [];
+const cartSub = () => S.cart.reduce((a, c) => a + c.qty * c.price, 0);
+
+async function loadMenu() {
+  const { data, error } = await sb.rpc("public_menu", { p_slug: slug });
+  if (error) { S.err = errMsg(error); render(); return; }
+  S.menu = data; document.title = data.name + " · Pedido";
+  // limpa itens que sumiram ou mudaram de preço
+  S.cart = S.cart.filter(c => { const p = allProds().find(x => x.id === c.id); if (!p || !p.available) return false;
+    c.price = c.size ? ((p.sizes || []).find(s => s.l === c.size) || {}).v : p.price; return c.price != null; }); saveCart();
+  if (!S.method) S.method = data.pix ? "pix" : "dinheiro";
+  render();
+}
+async function loadTrack() {
+  if (!S.token) return;
+  const { data, error } = await sb.rpc("public_track", { p_token: S.token });
+  if (!error && data) { S.track = data; render(); }
+}
+
+function vMenu() {
+  const m = S.menu;
+  if (!m) return `<div class="wrap"><div class="hero"><div><h1>${S.err ? "Ops" : "Carregando..."}</h1><div class="muted">${esc(S.err)}</div></div></div></div>`;
+  const n = S.cart.reduce((a, c) => a + c.qty, 0), sub = cartSub();
+  const recent = store.get("dnbar-pedidos-" + slug, []).slice(-1)[0];
+  return `<div class="wrap">
+    <div class="hero">${m.logo_url ? `<img src="${esc(img(m.logo_url))}" alt="">` : `<div class="ini">${esc(m.name.slice(0, 1))}</div>`}
+      <div><h1>${esc(m.name)}</h1><div class="facts"><span class="fact ${m.open ? "open" : "closed"}">${m.open ? "Aberto" : "Fechado"}</span>
+      <span class="fact">${m.eta} min</span><span class="fact">Entrega ${m.fee ? money(m.fee) : "grátis"}</span>${m.min ? `<span class="fact">Mínimo ${money(m.min)}</span>` : ""}</div></div></div>
+    ${!m.open ? `<div class="closed-box">O delivery está fechado agora. Você pode ver o cardápio, mas os pedidos abrem quando o restaurante voltar.</div>` : ""}
+    ${recent ? `<button class="btn sec" style="margin-bottom:10px" data-a="goTrack" data-v="${esc(recent)}">Acompanhar meu último pedido</button>` : ""}
+    <nav class="cats">${m.categories.map(c => `<button data-a="cat" data-v="${c.id}">${esc(c.name)}</button>`).join("")}</nav>
+    ${m.categories.map(c => `<section id="c-${c.id}"><h2 class="cat-h">${esc(c.name)}</h2>${c.products.map(p => {
+      const inCart = S.cart.filter(x => x.id === p.id).reduce((a, x) => a + x.qty, 0);
+      const price = p.sizes && p.sizes.length ? "a partir de " + money(Math.min(...p.sizes.map(s => s.v))) : money(p.price);
+      return `<button class="prod ${p.available ? "" : "off"}" data-a="add" data-v="${p.id}" ${p.available && m.open ? "" : "disabled"}>
+        <span><b>${esc(p.name)}${inCart ? `<span class="qty">${inCart}</span>` : ""}</b>${p.available ? `<div class="pr num">${price}</div>` : `<div class="tag">Esgotado</div>`}</span>
+        ${p.image_url ? `<img src="${esc(img(p.image_url))}" alt="" loading="lazy">` : `<span class="noimg"></span>`}</button>`; }).join("")}</section>`).join("")}
+    <div class="foot">Pedido direto com o restaurante · DNBAR</div></div>
+    ${n && m.open ? `<div class="bar"><button class="btn" data-a="checkout"><span class="sp">Ver pedido (${n})</span><span class="num">${money(sub)}</span></button></div>` : ""}`;
+}
+
+function vSheet() {
+  if (!S.sheet) return "";
+  const m = S.menu;
+  if (S.sheet === "size") { const p = allProds().find(x => x.id === S.size);
+    return `<div class="sheet-bg" data-a="close"><div class="sheet" data-stop>${`<div class="sh-h"><h2>${esc(p.name)}</h2><button class="x" data-a="close">×</button></div>`}
+      ${p.sizes.map(s => `<button class="opt" data-a="addSize" data-v="${esc(s.l)}"><span>${esc(s.l)}</span><span class="num">${money(s.v)}</span></button>`).join("")}</div></div>`; }
+  const sub = cartSub(), total = sub + m.fee, below = sub < m.min, me = S.me;
+  return `<div class="sheet-bg" data-a="close"><div class="sheet" data-stop>
+    <div class="sh-h"><h2>Seu pedido</h2><button class="x" data-a="close">×</button></div>
+    <div>${S.cart.map((c, i) => `<div class="line"><span><b>${esc(c.name)}</b><br><span class="muted num">${money(c.price)}</span></span>
+      <span class="step"><button data-a="dec" data-v="${i}">−</button><b class="num">${c.qty}</b><button data-a="inc" data-v="${i}">+</button></span></div>`).join("")}</div>
+    <label class="field">Observação para a cozinha<textarea data-in="note" placeholder="Ex.: sem cebola no X-Bacon">${esc(S.note)}</textarea></label>
+    <h3>Entrega</h3>
+    <label class="field">Seu nome<input data-in="me.name" autocomplete="name" value="${esc(me.name)}"></label>
+    <label class="field">WhatsApp com DDD<input data-in="me.phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(65) 99999-9999" value="${esc(me.phone)}"></label>
+    <div class="row2"><label class="field">Rua<input data-in="me.rua" autocomplete="address-line1" value="${esc(me.rua)}"></label><label class="field">Número<input data-in="me.numero" inputmode="numeric" value="${esc(me.numero)}"></label></div>
+    <div class="row2"><label class="field">Bairro<input data-in="me.bairro" value="${esc(me.bairro)}"></label><label class="field">Complemento<input data-in="me.complemento" placeholder="Apto, bloco" value="${esc(me.complemento)}"></label></div>
+    <label class="field">Ponto de referência<input data-in="me.referencia" value="${esc(me.referencia)}"></label>
+    <h3>Pagamento</h3>
+    ${m.pix ? `<button class="opt" data-a="method" data-v="pix" aria-pressed="${S.method === "pix"}"><span>Pix agora</span><span class="muted">QR Code na próxima tela</span></button>` : ""}
+    <button class="opt" data-a="method" data-v="dinheiro" aria-pressed="${S.method === "dinheiro"}"><span>Dinheiro na entrega</span></button>
+    ${S.method === "dinheiro" ? `<label class="field">Troco para quanto? (deixe vazio se não precisar)<input data-in="change" inputmode="decimal" placeholder="Ex.: 100,00" value="${esc(S.change)}"></label>` : ""}
+    <button class="opt" data-a="method" data-v="cartao" aria-pressed="${S.method === "cartao"}"><span>Cartão na entrega</span><span class="muted">Maquininha</span></button>
+    <div class="sum"><div class="r"><span>Subtotal</span><span class="num">${money(sub)}</span></div><div class="r"><span>Entrega</span><span class="num">${m.fee ? money(m.fee) : "grátis"}</span></div>
+      <div class="r T"><span>Total</span><span class="num">${money(total)}</span></div></div>
+    ${below ? `<div class="err">Pedido mínimo de ${money(m.min)}. Faltam ${money(m.min - sub)}.</div>` : ""}
+    <div class="err">${esc(S.err)}</div>
+    <button class="btn ok" data-a="send" ${S.busy || below ? "disabled" : ""}><span class="sp">${S.busy ? "Enviando..." : "Fazer pedido"}</span><span class="num">${money(total)}</span></button>
+  </div></div>`;
+}
+
+const STEPS = [["novo", "Pedido recebido", "created_at"], ["aceito", "Aceito pelo restaurante", "accepted_at"], ["preparo", "Em preparo", null], ["pronto", "Pronto", "ready_at"], ["saiu", "Saiu para entrega", "dispatched_at"], ["entregue", "Entregue", "delivered_at"]];
+function vTrack() {
+  const t = S.track;
+  if (!t) return `<div class="wrap"><div class="track"><h1>Carregando seu pedido...</h1></div></div>`;
+  const bad = ["recusado", "cancelado"].includes(t.status);
+  const idx = STEPS.findIndex(s => s[0] === t.status);
+  const label = { novo: "Aguardando o restaurante aceitar", aceito: t.payment_method === "pix" && t.payment_status === "pendente" ? "Aceito! Falta o pagamento do Pix" : "Aceito", preparo: "Seu pedido está sendo preparado", pronto: "Pronto, saindo em instantes", saiu: "Saiu para entrega", entregue: "Entregue. Bom apetite!", recusado: "Pedido recusado", cancelado: "Pedido cancelado" }[t.status];
+  const wa = t.bar.whatsapp ? `https://wa.me/55${t.bar.whatsapp.replace(/^55/, "")}?text=${encodeURIComponent("Olá! Sobre o meu pedido #" + t.number + " (" + t.name + ")")}` : null;
+  let qr = "";
+  if (t.pix && window.qrcode) { try { const q = qrcode(0, "M"); q.addData(t.pix); q.make(); qr = q.createDataURL(6, 0); } catch (e) { } }
+  return `<div class="wrap"><div class="track">
+    <div class="muted" style="font-weight:700">${esc(t.bar.name)} · Pedido #${t.number}</div>
+    <div class="status-big" style="color:${bad ? "var(--bad)" : "inherit"}">${label}</div>
+    ${bad && t.reject_reason ? `<div class="card">${esc(t.reject_reason)}</div>` : ""}
+    ${t.pix ? `<div class="card qr"><b>Pague com Pix: ${money(t.total)}</b>${qr ? `<div class="box"><img src="${qr}" alt="QR Code Pix"></div>` : ""}
+      <div class="code" id="pixcode">${esc(t.pix)}</div><button class="btn" data-a="copy">Copiar código Pix</button>
+      <div class="muted" style="font-size:13px;text-align:center">Abra o app do seu banco, escolha Pix copia e cola e cole o código. O restaurante confirma o recebimento.</div></div>` : ""}
+    ${!bad ? `<div class="card tl">${STEPS.filter(s => !(s[0] === "aceito" && t.payment_method !== "pix")).map(s => { const i = STEPS.findIndex(x => x[0] === s[0]);
+      return `<div class="s ${i < idx ? "done" : i === idx ? "now" : ""}"><i></i><span>${s[1]}</span><span class="num">${s[2] && t[s[2]] ? hhmm(t[s[2]]) : ""}</span></div>`; }).join("")}
+      <div class="muted" style="font-size:13px">Tempo estimado: ${t.bar.eta} min a partir do aceite.</div></div>` : ""}
+    <div class="card"><b>Itens</b>${t.items.map(i => `<div class="line"><span>${i.qty}x ${esc(i.name)}${i.note ? `<br><span class="muted">${esc(i.note)}</span>` : ""}</span><span class="num">${money(i.total)}</span></div>`).join("")}
+      <div class="sum"><div class="r"><span>Entrega</span><span class="num">${money(t.fee)}</span></div><div class="r T"><span>Total</span><span class="num">${money(t.total)}</span></div></div>
+      <div class="muted">Pagamento: ${{ pix: "Pix", dinheiro: "Dinheiro na entrega" + (t.change_for ? " (troco para " + money(t.change_for) + ")" : ""), cartao: "Cartão na entrega" }[t.payment_method]}${t.payment_status === "confirmado" ? " · pago" : ""}</div>
+      <div class="muted">Entregar em: ${esc(t.address.rua)}, ${esc(t.address.numero)}${t.address.complemento ? " - " + esc(t.address.complemento) : ""}, ${esc(t.address.bairro)}</div></div>
+    ${wa ? `<a class="btn sec" style="text-decoration:none" href="${wa}" target="_blank" rel="noopener">Falar com o restaurante no WhatsApp</a>` : ""}
+    <button class="btn sec" data-a="newOrder">Fazer outro pedido</button>
+  </div></div>`;
+}
+
+function render() {
+  const f = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.in;
+  app.innerHTML = (S.token ? vTrack() : vMenu() + vSheet()) + (S.toast ? `<div class="toast">${esc(S.toast)}</div>` : "");
+  if (f) { const el = app.querySelector(`[data-in="${f}"]`); if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
+}
+function toast(t) { S.toast = t; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { S.toast = null; render(); }, 2200); }
+function addItem(p, size) {
+  const price = size ? p.sizes.find(s => s.l === size).v : p.price, name = p.name + (size ? " (" + size.toLowerCase() + ")" : "");
+  const ex = S.cart.find(c => c.id === p.id && c.size === size); if (ex) ex.qty++; else S.cart.push({ id: p.id, size, name, price, qty: 1 });
+  S.key = uuid(); saveCart(); toast("Adicionado: " + name);
+}
+
+app.addEventListener("input", e => {
+  const k = e.target.dataset.in; if (!k) return;
+  if (k.startsWith("me.")) { S.me[k.slice(3)] = e.target.value; store.set("dnbar-cliente", S.me); }
+  else if (k === "note") S.note = e.target.value;
+  else if (k === "change") S.change = e.target.value;
+});
+app.addEventListener("click", async e => {
+  if (e.target.closest("[data-stop]") && !e.target.closest("[data-a]")) return;
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v;
+  switch (a) {
+    case "cat": document.getElementById("c-" + v)?.scrollIntoView({ behavior: "smooth", block: "start" }); return;
+    case "add": { const p = allProds().find(x => x.id === v); if (p.sizes && p.sizes.length) { S.size = v; S.sheet = "size"; break; } addItem(p, null); return; }
+    case "addSize": { const p = allProds().find(x => x.id === S.size); S.sheet = null; addItem(p, v); return; }
+    case "close": if (el.classList.contains("sheet-bg") && e.target !== el) return; S.sheet = null; S.err = ""; break;
+    case "checkout": S.sheet = "checkout"; S.err = ""; break;
+    case "inc": S.cart[+v].qty++; S.key = uuid(); saveCart(); break;
+    case "dec": if (--S.cart[+v].qty <= 0) S.cart.splice(+v, 1); S.key = uuid(); saveCart(); if (!S.cart.length) S.sheet = null; break;
+    case "method": S.method = v; S.key = uuid(); break;
+    case "send": {
+      if (S.busy) return; S.busy = true; S.err = ""; render();
+      const { data, error } = await sb.rpc("public_create_order", { p_slug: slug, p_key: S.key, p_name: S.me.name, p_phone: S.me.phone,
+        p_address: { rua: S.me.rua, numero: S.me.numero, complemento: S.me.complemento, bairro: S.me.bairro, referencia: S.me.referencia },
+        p_items: S.cart.map(c => ({ product_id: c.id, size: c.size, qty: c.qty })), p_method: S.method,
+        p_change_for_cents: S.method === "dinheiro" ? parseMoney(S.change) : null, p_note: S.note });
+      S.busy = false;
+      if (error) { S.err = errMsg(error); render(); return; }
+      const list = store.get("dnbar-pedidos-" + slug, []); list.push(data.token); store.set("dnbar-pedidos-" + slug, list.slice(-5));
+      S.cart = []; saveCart(); S.note = ""; S.sheet = null; S.token = data.token; S.key = uuid();
+      history.replaceState(null, "", location.pathname + "?" + (slug && !location.pathname.includes(slug) ? "b=" + slug + "&" : "") + "t=" + data.token);
+      await loadTrack(); return;
+    }
+    case "goTrack": S.token = v; history.replaceState(null, "", location.pathname + "?" + (location.pathname.includes(slug) ? "" : "b=" + slug + "&") + "t=" + v); await loadTrack(); return;
+    case "copy": { const t = S.track.pix; try { await navigator.clipboard.writeText(t); toast("Código Pix copiado"); } catch (err) { const r = document.createRange(); r.selectNodeContents(document.getElementById("pixcode")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Selecionado: copie o código"); } return; }
+    case "newOrder": S.token = null; S.track = null; history.replaceState(null, "", location.pathname + (location.pathname.includes(slug) ? "" : "?b=" + slug)); if (!S.menu) await loadMenu(); break;
+  }
+  render();
+});
+setInterval(() => { if (S.token && S.track && !["entregue", "recusado", "cancelado"].includes(S.track.status)) loadTrack(); }, 8000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S.token) loadTrack(); });
+render();
+if (!slug) { S.err = "Link incompleto."; render(); }
+else if (S.token) loadTrack(); else loadMenu();
+</script>
+</body>
+</html>

@@ -61,11 +61,22 @@ document.getElementById("base").textContent = BASE_CSS;
 const app = document.getElementById("app");
 
 const G = makeGate({ key: "cozinha", roles: ["cozinha", "bar", "gerente"], title: "Cozinha", onLogin: () => { K.station = G.user.role === "bar" ? "bar" : G.user.role === "cozinha" ? "cozinha" : "tudo"; loadLive(); } });
-const K = { station: "tudo", items: [], sessions: {}, known: null, newIds: new Set(), toast: null, soundOn: false, busy: new Set() };
+const K = { station: "tudo", items: [], dorders: [], ditems: [], sessions: {}, known: null, newIds: new Set(), toast: null, soundOn: false, busy: new Set() };
 let dismissed = new Set(); try { dismissed = new Set(JSON.parse(localStorage.getItem("dnbar-cx-vistos") || "[]")); } catch (e) { }
 
+async function loadDelivery() {
+  const o = await sb.from("delivery_orders").select("id,number,customer_name,created_at,accepted_at,status,note").in("status", ["preparo"]).order("accepted_at");
+  if (o.error) return;
+  const ids = o.data.map(x => x.id); let it = { data: [] };
+  if (ids.length) it = await sb.from("delivery_order_items").select("id,delivery_order_id,name_snapshot,qty,note,area").in("delivery_order_id", ids);
+  const fresh = o.data.filter(x => K.dknown && !K.dknown.has(x.id) && (it.data || []).some(i => i.delivery_order_id === x.id && inStation(i)));
+  if (fresh.length) { fresh.forEach(x => K.newIds.add("d" + x.id)); if (K.soundOn) { beep(880); setTimeout(() => beep(1175), 220); } setTimeout(() => { fresh.forEach(x => K.newIds.delete("d" + x.id)); render(); }, 8000); }
+  K.dknown = new Set(o.data.map(x => x.id));
+  K.dorders = o.data; K.ditems = it.data || [];
+}
 async function loadLive() {
   if (!G.user) return;
+  await loadDelivery();
   const ses = await sb.from("table_sessions").select("id,dining_tables(label)").eq("status", "open");
   if (ses.error) return;
   K.sessions = {}; ses.data.forEach(s => K.sessions[s.id] = s.dining_tables ? s.dining_tables.label : "?");
@@ -123,11 +134,24 @@ function cardHtml(c) {
       : `<button class="btn ok block" data-a="ready" data-v="${pend.join(",")}" ${K.busy.has(c.oid) ? "disabled" : ""}>PRONTO</button>`}</div></article>`;
 }
 
+function dcards() {
+  return K.dorders.map(o => ({ o, its: K.ditems.filter(i => i.delivery_order_id === o.id && inStation(i)) })).filter(c => c.its.length);
+}
+function dcardHtml(c) {
+  const mins = Math.floor((Date.now() - new Date(c.o.accepted_at || c.o.created_at)) / 60000);
+  const cls = mins >= 20 ? "very" : mins >= 12 ? "late" : "";
+  return `<article class="card ${cls} ${K.newIds.has("d" + c.o.id) ? "new" : ""}" style="border-color:var(--bill)">
+    <div class="ch"><div class="mesa"><small>DELIVERY · PEDIDO #${c.o.number}</small>${esc(c.o.customer_name.split(" ")[0])}</div><div class="timer num">${mins} min</div></div>
+    <div class="who">Para viagem · embalar</div>
+    <div class="items">${c.its.map(i => `<div class="it"><span class="q num">${i.qty}</span><span><span class="n">${esc(i.name_snapshot)}</span>${i.note ? `<div class="note">${esc(i.note)}</div>` : ""}</span></div>`).join("")}
+      ${c.o.note ? `<div class="it"><span></span><span><div class="note">${esc(c.o.note)}</div></span></div>` : ""}</div>
+    <div class="cf"><button class="btn ok block" data-a="dready" data-v="${c.o.id}">PRONTO</button></div></article>`;
+}
 function render() {
   if (!G.ready) { app.innerHTML = `<div class="gate"><div class="muted">Carregando...</div></div>`; return; }
   if (!G.user) { app.innerHTML = G.view(); return; }
-  const cs = cards(), dr = doneRecent();
-  const n = cs.filter(c => !c.cxOnly).length;
+  const cs = cards(), dr = doneRecent(), ds = dcards();
+  const n = cs.filter(c => !c.cxOnly).length + ds.length;
   app.innerHTML = `<header class="kh">
     <div class="title"><div class="eyebrow">${esc(G.bar.name)}</div><h1>${K.station === "bar" ? "Bar" : K.station === "cozinha" ? "Cozinha" : "Cozinha e bar"}</h1></div>
     <div class="chips">${[["cozinha", "Cozinha"], ["bar", "Bar"], ["tudo", "Tudo"]].map(([k, l]) => `<button class="chip" data-a="st" data-v="${k}" aria-pressed="${K.station === k}">${l}</button>`).join("")}</div>
@@ -137,7 +161,7 @@ function render() {
     <span class="clock num">${hhmm(Date.now())}</span>${temaSwitch()}
     <span class="me">${avatar(G.user, 34)}${esc(G.user.name)}</span><button class="btn sm" data-a="logout">Sair</button>
   </header>
-  <main class="board">${cs.length ? cs.map(cardHtml).join("") : `<div class="empty"><b>Tudo em dia</b>Quando um garçom lançar um pedido, ele aparece aqui na hora.</div>`}</main>
+  <main class="board">${cs.length || ds.length ? ds.map(dcardHtml).join("") + cs.map(cardHtml).join("") : `<div class="empty"><b>Tudo em dia</b>Quando um garçom lançar um pedido, ele aparece aqui na hora.</div>`}</main>
   ${dr.length ? `<div class="done-bar"><span class="lbl">Prontos</span>${dr.map(its => `<button data-a="undo" data-v="${its.map(i => i.id).join(",")}" title="Tocar para desfazer">Mesa ${esc(K.sessions[its[0].session_id] || "?")} · #${its[0].orders.number} · ${hhmm(its[0].ready_at)} ↺</button>`).join("")}</div>` : ""}
   ${K.toast ? `<div class="toast ${K.toast.bad ? "bad" : ""}">${esc(K.toast.t)}${K.toast.s ? `<small>${esc(K.toast.s)}</small>` : ""}</div>` : ""}
   ${!navigator.onLine ? `<div class="net">Sem conexão. Os pedidos voltam a aparecer quando a internet voltar.</div>` : ""}`;
@@ -160,6 +184,7 @@ app.addEventListener("click", async e => {
       catch (err) { toast("Não deu certo", errMsg(err), true); }
       K.busy.delete(oid); render(); break;
     }
+    case "dready": try { await rpcT(G, "delivery_action", { p_order_id: v, p_action: "pronto", p_extra: {} }); await loadLive(); toast("Delivery pronto", "O caixa já pode despachar"); } catch (err) { toast("Não deu certo", errMsg(err), true); } break;
     case "undo": try { await rpcT(G, "undo_ready", { p_item_ids: v.split(",") }); await loadLive(); toast("Voltou para a fila", ""); } catch (err) { toast("Não deu certo", errMsg(err), true); } break;
     case "seen": v.split(",").forEach(id => dismissed.add(id)); try { localStorage.setItem("dnbar-cx-vistos", JSON.stringify([...dismissed].slice(-300))); } catch (e) { } render(); break;
   }
@@ -178,6 +203,7 @@ G.load().then(() => {
   if (G.auth) sb.channel("cozinha")
     .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, schedule)
     .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, schedule)
+    .on("postgres_changes", { event: "*", schema: "public", table: "delivery_orders" }, schedule)
     .subscribe();
 }).catch(err => { app.innerHTML = `<div class="gate"><div class="err">${esc(errMsg(err))}</div><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });

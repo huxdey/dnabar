@@ -1,7 +1,7 @@
 // DNBAR service worker: telas funcionam mesmo com a internet oscilando.
 // Páginas: rede primeiro (sempre a versão nova). Imagens: cache primeiro.
 // Nunca guarda nada do Supabase (dados sempre ao vivo).
-const CACHE = "dnbar-v3";
+const CACHE = "dnbar-v4";
 self.addEventListener("install", e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "index.html", "manifest.webmanifest", "icons/icon-192.png"]))); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

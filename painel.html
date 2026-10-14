@@ -66,7 +66,7 @@ document.getElementById("base").textContent = BASE_CSS;
 // sessão do dono separada da sessão do aparelho do bar
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { storageKey: "dnbar-dono" } });
 const app = document.getElementById("app");
-const P = { auth: null, role: null, bar: null, tab: "resumo", period: "hoje", rep: null, loading: false, email: "", pw: "", err: "", busy: false, prods: [], cats: [], edits: {}, toast: null };
+const P = { dl: null, dlErr: "", auth: null, role: null, bar: null, tab: "resumo", period: "hoje", rep: null, loading: false, email: "", pw: "", err: "", busy: false, prods: [], cats: [], edits: {}, toast: null };
 const MLABEL = { pix: "Pix", debito: "Débito", credito: "Crédito", dinheiro: "Dinheiro", outro: "Outro" };
 
 // "dia do bar" vai das 6h às 6h (a noite de sexta conta como sexta)
@@ -138,6 +138,7 @@ function vResumo() {
     <div class="kpi"><span>Itens vendidos</span><b class="num">${r.items_sold}</b></div>
     <div class="kpi"><span>Venda balcão</span><b class="num">${money(r.counter_revenue)}</b><span>${r.counter_count} vendas</span></div>
     <div class="kpi"><span>Mesas abertas agora</span><b class="num">${r.open_tables}</b></div>
+    ${r.delivery_count || r.delivery_revenue ? `<div class="kpi"><span>Delivery</span><b class="num">${money(r.delivery_revenue)}</b><span>${r.delivery_count} entregues${r.delivery_refused ? " · " + r.delivery_refused + " recusados" : ""}</span></div>` : ""}
   </div>
   <div class="grid2">
     <div class="card"><h3>Mais vendidos</h3>${r.top.length ? `<div class="rank">${r.top.map((p, i) => `<div class="r"><span class="p">${i + 1}</span><span>${esc(p.name)}</span><span class="q num">${p.qty}x</span><b class="num">${money(p.total)}</b></div>`).join("")}</div>` : `<div class="empty">Nenhuma venda no período.</div>`}</div>
@@ -163,13 +164,33 @@ function vCardapio() {
         <span class="acts"><button class="btn sm ${e.dirty ? "primary" : ""}" data-a="save" data-v="${p.id}" ${e.dirty ? "" : "disabled"}>Salvar</button>
         <button class="btn sm" data-a="avail" data-v="${p.id}">${p.available ? "Marcar esgotado" : "Voltou a ter"}</button></span></div>`; }).join("")}</div>`; }).join("")}`;
 }
+async function loadDl() {
+  const { data, error } = await sb.from("establishments").select("plan,slug,delivery_open,whatsapp,pix_key,pix_key_type,pix_merchant_name,pix_city,delivery_fee_cents,min_order_cents,delivery_eta_min").single();
+  if (error) return toast("Não foi possível carregar", errMsg(error), true);
+  P.dl = { ...data, fee: centsToInput(data.delivery_fee_cents), min: centsToInput(data.min_order_cents) }; render();
+}
+function vDelivery() {
+  const d = P.dl; if (!d) return `<div class="empty">Carregando...</div>`;
+  if (d.plan !== "salao_delivery") return `<div class="card"><h3>Delivery não contratado</h3><div class="sub">Seu plano atual é só o salão. Fale com a DNBAR para ativar o plano Salão + Delivery: cardápio online, pedidos sem comissão e Pix direto na sua conta.</div></div>`;
+  const link = location.origin + "/pedir/" + d.slug;
+  const f = (k, l, ph, type) => `<label class="field">${l}<input data-in="dl" data-k="${k}" ${type ? `inputmode="${type}"` : ""} placeholder="${ph || ""}" value="${esc(d[k] ?? "")}"></label>`;
+  return `<div class="card"><h3>Link de pedidos</h3><div class="sub">Coloque na bio do Instagram, no WhatsApp e no Google Meu Negócio. Pedido feito aqui não paga comissão.</div>
+      <div style="font-weight:800;word-break:break-all">${esc(link)}</div><div class="chips"><button class="btn sm" data-a="copyLink" data-v="${esc(link)}">Copiar link</button><a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Abrir</a></div>
+      <div class="sub">Hoje o delivery está <b>${d.delivery_open ? "aberto" : "fechado"}</b>. Quem abre e fecha no dia a dia é o caixa ou gerente, na tela Delivery.</div></div>
+    <div class="card"><h3>Pix (o dinheiro cai direto na sua conta)</h3>
+      <label class="field">Tipo de chave<select data-in="dl" data-k="pix_key_type">${[["", "Sem Pix"], ["cpf", "CPF"], ["cnpj", "CNPJ"], ["telefone", "Telefone"], ["email", "E-mail"], ["aleatoria", "Chave aleatória"]].map(([k, l]) => `<option value="${k}" ${(d.pix_key_type || "") === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      ${f("pix_key", "Chave Pix", "Sua chave")}${f("pix_merchant_name", "Nome que aparece no Pix", "Ex.: Cumbucas Bar")}${f("pix_city", "Cidade", "Ex.: Cuiaba")}
+      <div class="sub">Confira a chave com cuidado: o cliente paga para ela. O restaurante confirma o recebimento na tela Delivery.</div></div>
+    <div class="card"><h3>Entrega</h3>${f("whatsapp", "WhatsApp do restaurante (com DDD)", "65999999999", "tel")}${f("fee", "Taxa de entrega (R$)", "0,00", "decimal")}${f("min", "Pedido mínimo (R$)", "0,00", "decimal")}${f("delivery_eta_min", "Tempo estimado (minutos)", "45", "numeric")}
+      <div class="err">${esc(P.dlErr)}</div><button class="btn primary block" data-a="saveDl">Salvar configurações</button></div>`;
+}
 function render() {
   const f = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.in;
   const fp = f && document.activeElement.dataset.p, fi = f && document.activeElement.dataset.i;
   if (!P.auth || P.role !== "owner") app.innerHTML = vLogin();
   else app.innerHTML = `<header class="ph"><div class="grow"><div class="eyebrow">${esc(P.bar ? P.bar.name : "")}</div><h1>Painel do dono</h1></div>${temaSwitch()}<button class="btn sm" data-a="logout">Sair</button></header>
-    <div class="tabs chips"><button class="chip" data-a="tab" data-v="resumo" aria-pressed="${P.tab === "resumo"}">Resumo</button><button class="chip" data-a="tab" data-v="cardapio" aria-pressed="${P.tab === "cardapio"}">Cardápio</button><button class="chip" data-a="reload">Atualizar</button></div>
-    <main class="wrap"><div class="inner">${P.tab === "resumo" ? vResumo() : vCardapio()}</div></main>`;
+    <div class="tabs chips"><button class="chip" data-a="tab" data-v="resumo" aria-pressed="${P.tab === "resumo"}">Resumo</button><button class="chip" data-a="tab" data-v="cardapio" aria-pressed="${P.tab === "cardapio"}">Cardápio</button><button class="chip" data-a="tab" data-v="delivery" aria-pressed="${P.tab === "delivery"}">Delivery</button><button class="chip" data-a="reload">Atualizar</button></div>
+    <main class="wrap"><div class="inner">${P.tab === "resumo" ? vResumo() : P.tab === "delivery" ? vDelivery() : vCardapio()}</div></main>`;
   if (P.toast) app.insertAdjacentHTML("beforeend", `<div class="toast ${P.toast.bad ? "bad" : ""}">${esc(P.toast.t)}${P.toast.s ? `<small>${esc(P.toast.s)}</small>` : ""}</div>`);
   if (f) { const el = app.querySelector(fp ? `[data-in="${f}"][data-p="${fp}"][data-i="${fi}"]` : `[data-in="${f}"]`); if (el) { el.focus(); const n = el.value.length; try { el.setSelectionRange(n, n) } catch (e) { } } }
 }
@@ -178,6 +199,7 @@ function toast(t, s, bad) { P.toast = { t, s, bad }; render(); clearTimeout(toas
 app.addEventListener("input", e => {
   const d = e.target.dataset;
   if (d.in === "email" || d.in === "pw") { P[d.in] = e.target.value; return; }
+  if (d.in === "dl") { P.dl[d.k] = e.target.value; if (d.k === "pix_key_type") render(); return; }
   if (d.in === "price") { const ed = P.edits[d.p] = P.edits[d.p] || {}; if (d.i === "-1") ed.price = e.target.value; else ed["s" + d.i] = e.target.value; const was = ed.dirty; ed.dirty = true; if (!was) render(); }
 });
 app.addEventListener("click", async e => {
@@ -192,9 +214,17 @@ app.addEventListener("click", async e => {
       P.pw = ""; await boot(); return;
     }
     case "logout": await sb.auth.signOut(); P.auth = null; P.role = null; P.rep = null; break;
-    case "tab": P.tab = v; if (v === "cardapio") { render(); await loadMenu(); return; } break;
+    case "tab": P.tab = v; if (v === "cardapio") { render(); await loadMenu(); return; } if (v === "delivery") { render(); await loadDl(); return; } break;
+    case "copyLink": try { await navigator.clipboard.writeText(v); toast("Link copiado", ""); } catch (err) { toast("Copie o link", v); } return;
+    case "saveDl": { const d = P.dl; P.dlErr = "";
+      const fee = parseMoney(d.fee || "0"), min = parseMoney(d.min || "0");
+      if (fee == null || min == null) { P.dlErr = "Valor inválido."; break; }
+      if (d.pix_key_type && !String(d.pix_key || "").trim()) { P.dlErr = "Digite a chave Pix."; break; }
+      const { error } = await sb.rpc("owner_update_delivery", { p: { whatsapp: d.whatsapp || "", pix_key: d.pix_key_type ? d.pix_key : "", pix_key_type: d.pix_key_type || "", pix_merchant_name: d.pix_merchant_name || "", pix_city: d.pix_city || "", delivery_fee_cents: fee, min_order_cents: min, delivery_eta_min: parseInt(d.delivery_eta_min) || 45 } });
+      if (error) { P.dlErr = errMsg(error); break; }
+      await loadDl(); toast("Delivery atualizado", "Já vale no link dos clientes"); return; }
     case "period": P.period = v; await loadReport(); return;
-    case "reload": if (P.tab === "cardapio") await loadMenu(); else await loadReport(); return;
+    case "reload": if (P.tab === "cardapio") await loadMenu(); else if (P.tab === "delivery") await loadDl(); else await loadReport(); return;
     case "save": case "avail": {
       const p = P.prods.find(x => x.id === v), ed = P.edits[v] || {};
       let price = null, sizes = null, avail = null;

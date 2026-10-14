@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0B">
+<title>DNBAR Delivery</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style id="base"></style>
+<style>
+.dh{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dh .title{display:flex;flex-direction:column}.dh h1{font-size:22px}.dh .grow{flex:1}
+.openbtn{min-height:42px;padding:0 16px;border-radius:999px;font-weight:800}
+.openbtn.on{background:var(--ok);color:#04220f}.openbtn.off{background:var(--bad);color:#fff}
+.share{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted);flex-wrap:wrap}
+.share code{color:var(--fg);font-weight:700}
+.board{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(4,minmax(260px,1fr));gap:12px;padding:12px 16px 30px;align-items:start}
+.col{background:color-mix(in srgb,var(--surface) 50%,transparent);border:1px solid var(--line);border-radius:20px;padding:10px;display:grid;gap:10px;min-height:120px}
+.col h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:inherit;display:flex;justify-content:space-between;padding:4px 4px 0}
+.col h2 b{color:var(--fg)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px;display:grid;gap:8px}
+.card.new{border:2px solid var(--bill);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--bill) 25%,transparent)}}
+.ct{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ct .n{font-family:"Sora",sans-serif;font-weight:800;font-size:22px}
+.ct .age{font-weight:700;color:var(--muted);font-size:13px}.ct .age.late{color:var(--warn)}.ct .age.very{color:var(--bad)}
+.who{font-weight:700}.who a{color:var(--fg)}
+.addr{font-size:14px;color:var(--muted);font-weight:600}
+.its{display:grid;gap:4px;font-size:15px;border-top:1px solid var(--line);padding-top:8px}
+.its .nt{display:block;background:var(--note-bg);color:var(--note-fg);font-weight:800;font-size:13px;padding:3px 8px;border-radius:8px;margin-top:2px;text-transform:uppercase}
+.pay{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:800}
+.badge{font-size:12px;font-weight:800;padding:3px 8px;border-radius:8px;background:var(--surface-2)}
+.badge.paid{background:var(--ok);color:#04220f}.badge.wait{background:var(--warn);color:#1a1200}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.acts .btn{min-height:46px}.acts .full{grid-column:1/-1}
+.empty{color:var(--muted);font-weight:600;font-size:14px;padding:8px}
+.done{padding:10px 16px 20px;border-top:1px solid var(--line)}
+.done summary{cursor:pointer;font-weight:700;color:var(--muted)}
+.done .r{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+@media (max-width:900px){.board{grid-template-columns:1fr;overflow-y:auto}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { sb, esc, hhmm, money, avatar, makeGate, rpcT, errMsg, beep, BASE_CSS, temaSwitch } from "./core.js";
+document.getElementById("base").textContent = BASE_CSS;
+const app = document.getElementById("app");
+const G = makeGate({ key: "delivery", roles: ["caixa", "gerente"], title: "Delivery", onLogin: () => loadAll() });
+const D = { orders: [], items: [], est: null, known: null, fresh: new Set(), soundOn: false, toast: null, busy: null, modal: null };
+const PM = { pix: "Pix", dinheiro: "Dinheiro", cartao: "Cartão na entrega" };
+
+async function loadAll() {
+  if (!G.user) return;
+  const since = new Date(Date.now() - 16 * 3600e3).toISOString();
+  const [e, o] = await Promise.all([
+    sb.from("establishments").select("plan,slug,delivery_open,delivery_eta_min").single(),
+    sb.from("delivery_orders").select("*").gte("created_at", since).order("created_at")]);
+  if (e.error || o.error) return;
+  D.est = e.data; D.orders = o.data;
+  const ids = D.orders.map(x => x.id);
+  if (ids.length) { const it = await sb.from("delivery_order_items").select("delivery_order_id,name_snapshot,qty,unit_price_cents,note").in("delivery_order_id", ids); if (!it.error) D.items = it.data; }
+  else D.items = [];
+  const novos = new Set(D.orders.filter(x => x.status === "novo").map(x => x.id));
+  if (D.known) { const f = [...novos].filter(x => !D.known.has(x)); if (f.length) { f.forEach(x => D.fresh.add(x)); if (D.soundOn) { beep(988); setTimeout(() => beep(1319), 200); setTimeout(() => beep(988), 400); } } }
+  D.known = novos;
+  render();
+}
+let t; const schedule = () => { clearTimeout(t); t = setTimeout(loadAll, 250); };
+
+function card(o) {
+  const its = D.items.filter(i => i.delivery_order_id === o.id);
+  const mins = Math.floor((Date.now() - new Date(o.created_at)) / 60000);
+  const late = mins >= (D.est?.delivery_eta_min || 45) ? "very" : mins >= (D.est?.delivery_eta_min || 45) * .7 ? "late" : "";
+  const a = o.address || {}, wa = `https://wa.me/55${o.customer_phone.replace(/^55/, "")}`;
+  const paid = o.payment_status === "confirmado";
+  let acts = "";
+  if (o.status === "novo") acts = `<button class="btn ok" data-a="act" data-v="aceitar" data-o="${o.id}">Aceitar</button><button class="btn" data-a="refuse" data-o="${o.id}">Recusar</button>`;
+  else if (o.status === "aceito") acts = `<button class="btn ok full" data-a="act" data-v="confirmar_pix" data-o="${o.id}">Pix recebido, confirmar</button><button class="btn full" data-a="refuse" data-o="${o.id}">Cancelar pedido</button>`;
+  else if (o.status === "preparo" || o.status === "pronto") acts = `<button class="btn primary full" data-a="act" data-v="saiu" data-o="${o.id}">Saiu para entrega</button>${o.payment_method === "pix" && !paid ? `<button class="btn full" data-a="act" data-v="confirmar_pix" data-o="${o.id}">Confirmar Pix</button>` : ""}`;
+  else if (o.status === "saiu") acts = o.payment_method === "cartao" && !paid
+    ? `<button class="btn ok" data-a="deliver" data-v="debito" data-o="${o.id}">Entregue · Débito</button><button class="btn ok" data-a="deliver" data-v="credito" data-o="${o.id}">Entregue · Crédito</button>`
+    : `<button class="btn ok full" data-a="deliver" data-v="" data-o="${o.id}">Entregue${!paid && o.payment_method === "dinheiro" ? " e recebido" : ""}</button>`;
+  return `<article class="card ${D.fresh.has(o.id) ? "new" : ""}">
+    <div class="ct"><span class="n">#${o.number}</span><span class="age ${late}">${hhmm(o.created_at)} · ${mins} min</span></div>
+    <div class="who">${esc(o.customer_name)} · <a href="${wa}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a></div>
+    <div class="addr">${esc(a.rua)}, ${esc(a.numero)}${a.complemento ? " - " + esc(a.complemento) : ""} · <b>${esc(a.bairro)}</b>${a.referencia ? "<br>Ref.: " + esc(a.referencia) : ""}</div>
+    <div class="its">${its.map(i => `<div><b>${i.qty}x</b> ${esc(i.name_snapshot)}${i.note ? `<span class="nt">${esc(i.note)}</span>` : ""}</div>`).join("")}
+      ${o.note ? `<div><span class="nt">Obs.: ${esc(o.note)}</span></div>` : ""}</div>
+    <div class="pay"><span class="num">${money(o.total_cents)}</span><span class="badge ${paid ? "paid" : o.payment_method === "pix" ? "wait" : ""}">${PM[o.payment_method]}${paid ? " · pago" : o.payment_method === "pix" ? " · aguardando" : ""}${o.change_for_cents ? " · troco p/ " + money(o.change_for_cents) : ""}</span></div>
+    ${o.status === "pronto" ? `<div class="badge paid" style="justify-self:start">Cozinha: pronto</div>` : ""}
+    <div class="acts">${acts}</div></article>`;
+}
+function render() {
+  if (!G.ready) { app.innerHTML = `<div class="gate"><div class="muted">Carregando...</div></div>`; return; }
+  if (!G.user) { app.innerHTML = G.view(); return; }
+  if (D.est && D.est.plan !== "salao_delivery") { app.innerHTML = `<div class="gate"><h1 class="big">Delivery não contratado</h1><p class="muted">O plano deste bar não inclui o delivery. Fale com a DNBAR para ativar.</p><button class="btn" data-a="logout">Sair</button></div>`; return; }
+  const by = s => D.orders.filter(o => s.includes(o.status));
+  const cols = [["Novos", ["novo"]], ["Aguardando Pix", ["aceito"]], ["Em preparo", ["preparo", "pronto"]], ["Saiu para entrega", ["saiu"]]];
+  const done = D.orders.filter(o => ["entregue", "recusado", "cancelado"].includes(o.status)).reverse();
+  const link = D.est ? `${location.origin}/pedir/${D.est.slug}` : "";
+  app.innerHTML = `<header class="dh"><div class="title"><div class="eyebrow">${esc(G.bar.name)}</div><h1>Delivery</h1></div>
+      ${D.est ? `<button class="openbtn ${D.est.delivery_open ? "on" : "off"}" data-a="toggle">${D.est.delivery_open ? "Aberto · tocar para fechar" : "Fechado · tocar para abrir"}</button>` : ""}
+      <span class="grow"></span>${D.soundOn ? "" : `<button class="btn sm" style="background:var(--warn);color:#1a1200;border:0" data-a="sound">Ativar som</button>`}
+      ${temaSwitch()}${avatar(G.user, 34)}<button class="btn sm" data-a="logout">Sair</button></header>
+    ${link ? `<div class="share">Link para os clientes: <code>${esc(link)}</code><button class="btn sm" data-a="copy" data-v="${esc(link)}">Copiar</button><a class="btn sm" href="${esc(link)}" target="_blank" rel="noopener">Abrir</a></div>` : ""}
+    <main class="board">${cols.map(([t, s]) => { const os = by(s); return `<section class="col"><h2>${t}<b>${os.length}</b></h2>${os.map(card).join("") || `<div class="empty">Nada aqui.</div>`}</section>`; }).join("")}</main>
+    <details class="done"><summary>Finalizados hoje (${done.length})</summary>${done.map(o => `<div class="r"><span>#${o.number} · ${esc(o.customer_name)} · ${hhmm(o.created_at)}</span><span>${o.status === "entregue" ? money(o.total_cents) : `<span style="color:var(--bad)">${o.status}</span>`}</span></div>`).join("")}</details>
+    ${D.modal ? `<div class="modal-bg"><div class="modal"><div class="modal-h"><h2>${D.modal.title}</h2><button class="back" data-a="mx">×</button></div>
+      <label class="field">Motivo (o cliente vê)<input data-in="reason" placeholder="Ex.: fora da área de entrega"></label>
+      <div class="chips">${["Fora da área de entrega", "Produto em falta", "Cozinha lotada", "Pagamento não identificado"].map(r => `<button class="chip" data-a="reason" data-v="${esc(r)}">${esc(r)}</button>`).join("")}</div>
+      <button class="btn bad block" data-a="refuseOk">${D.modal.title}</button></div></div>` : ""}
+    ${D.toast ? `<div class="toast ${D.toast.bad ? "bad" : ""}">${esc(D.toast.t)}${D.toast.s ? `<small>${esc(D.toast.s)}</small>` : ""}</div>` : ""}
+    ${!navigator.onLine ? `<div class="net">Sem conexão. Novos pedidos aparecem quando a internet voltar.</div>` : ""}`;
+}
+function toast(t, s, bad) { D.toast = { t, s, bad }; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { D.toast = null; render(); }, 3000); }
+async function act(id, action, extra) {
+  if (D.busy) return; D.busy = id;
+  try { await rpcT(G, "delivery_action", { p_order_id: id, p_action: action, p_extra: extra || {} }); D.fresh.delete(id); await loadAll(); }
+  catch (e) { toast("Não deu certo", errMsg(e) + (/STATUS_INVALIDO/.test(e.message) ? " O pedido mudou em outra tela." : /CAIXA_FECHADO/.test(e.message) ? "" : ""), true); }
+  D.busy = null;
+}
+app.addEventListener("input", e => { if (G.input(e.target.dataset.in, e.target.value)) return; if (e.target.dataset.in === "reason" && D.modal) D.modal.reason = e.target.value; });
+app.addEventListener("click", async e => {
+  const el = e.target.closest("[data-a]"); if (!el) return;
+  const a = el.dataset.a, v = el.dataset.v, o = el.dataset.o;
+  if (await G.click(a, v, render)) return;
+  switch (a) {
+    case "logout": G.logout(); render(); return;
+    case "sound": D.soundOn = true; beep(660); render(); return;
+    case "toggle": try { const r = await rpcT(G, "delivery_toggle", { p_open: !D.est.delivery_open }); D.est.delivery_open = r; toast(r ? "Delivery aberto" : "Delivery fechado", r ? "Os clientes já podem pedir" : "O link mostra o cardápio, mas não aceita pedidos"); } catch (err) { toast("Não deu certo", errMsg(err), true); } return;
+    case "copy": try { await navigator.clipboard.writeText(v); toast("Link copiado", "Cole no Instagram, WhatsApp e Google"); } catch (err) { toast("Copie o link", v); } return;
+    case "act": await act(o, v); return;
+    case "deliver": await act(o, "entregue", v ? { method: v } : {}); return;
+    case "refuse": { const ord = D.orders.find(x => x.id === o); D.modal = { id: o, action: ord.status === "novo" ? "recusar" : "cancelar", title: ord.status === "novo" ? "Recusar pedido #" + ord.number : "Cancelar pedido #" + ord.number, reason: "" }; break; }
+    case "reason": D.modal.reason = v; app.querySelector('[data-in="reason"]').value = v; return;
+    case "refuseOk": { const m = D.modal; D.modal = null; await act(m.id, m.action, { reason: m.reason }); return; }
+    case "mx": D.modal = null; break;
+  }
+  render();
+});
+document.addEventListener("keydown", e => { if (!G.user) G.key(e, render); });
+document.addEventListener("gesturestart", e => e.preventDefault());
+window.addEventListener("online", () => { render(); schedule(); }); window.addEventListener("offline", render);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && G.user) schedule(); });
+setInterval(() => { if (G.user && !D.modal) loadAll(); }, 15000);
+setInterval(() => { if (G.user && !D.modal) render(); }, 30000);
+
+render();
+G.load().then(async () => {
+  render(); if (G.user) await loadAll();
+  if (G.auth) sb.channel("delivery").on("postgres_changes", { event: "*", schema: "public", table: "delivery_orders" }, schedule).subscribe();
+}).catch(err => { app.innerHTML = `<div class="gate"><div class="err">${esc(errMsg(err))}</div><button class="btn" onclick="location.reload()">Tentar de novo</button></div>`; });
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
+</script>
+</body>
+</html>

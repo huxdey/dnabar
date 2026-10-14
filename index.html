@@ -653,7 +653,7 @@ function vLogin(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div class="eyebrow">${esc(BAR.name)}</div>${temaSwitch()}</div>
     <div style="margin-top:-12px"><div class="brandmark">Quem está no<br><span class="grad-text">salão hoje?</span></div></div>
     <div class="people">${STAFF.map(p=>`<button class="person" data-a="who" data-v="${p.id}" aria-label="${esc(p.name)}, ${p.role}"><img src="${p.portrait}" alt=""><span class="cap"><b>${esc(p.name)}</b><span class="role">${p.role}</span></span></button>`).join("")}</div>
-    <div class="demo-tag">Outras telas: <a href="cozinha.html" style="color:var(--fg)">Cozinha/Bar</a> · <a href="caixa.html" style="color:var(--fg)">Caixa</a> · <a href="painel.html" style="color:var(--fg)">Dono</a></div>
+    <div class="demo-tag">Outras telas: <a href="cozinha.html" style="color:var(--fg)">Cozinha/Bar</a> · <a href="caixa.html" style="color:var(--fg)">Caixa</a> · <a href="delivery.html" style="color:var(--fg)">Delivery</a> · <a href="painel.html" style="color:var(--fg)">Dono</a></div>
     <button class="linkbtn" data-a="deactivate">Desativar este aparelho</button>
   </div>`;
 }
