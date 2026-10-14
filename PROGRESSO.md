@@ -5,7 +5,7 @@
 ## Infra
 - Supabase: projeto `dnbar` (id `omshldyfjethjufjhkrd`, região São Paulo).
 - Repositório: `huxdey/dnabar` (branch `main` = produção). Tag `v1-base` = protótipo original.
-- Hospedagem: Vercel importando este repositório (sem build, site estático).
+- Hospedagem: Vercel, projeto `dnabar` (conta huxdeybetuel-8055). Link fixo: https://dnabar.vercel.app (publica sozinho a cada push na main).
 
 ## Etapa 1 - concluída (14/10/2026)
 - Banco: bares, equipe, PIN, mesas, cardápio, sessões de mesa, pedidos, itens, linha do tempo/auditoria.
