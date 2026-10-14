@@ -19,7 +19,7 @@
 
 ## Pendências conhecidas
 - Trocar os PINs de teste (1234) antes de uso real.
-- No painel do Supabase: desligar "Allow new users to sign up" (Authentication > Sign In / Providers).
+- Cadastro público bloqueado no banco (migração 003). Reforço opcional: desligar "Allow new users to sign up" no painel do Supabase.
 - Pedido pelo QR do cliente: fora do escopo por enquanto.
 
 ## Próximas etapas
